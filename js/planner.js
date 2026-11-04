@@ -51,7 +51,66 @@ var Planner = (function () {
     }
     if (s.maxMinutes && r.min > s.maxMinutes) return false;
     if (state.ratings && state.ratings[r.id] === -1) return false;
+    if (s.carbTarget) {
+      var n = nutrition(state, r);
+      if (n.known && (n.carbs > s.carbTarget + 5 || n.sugar > 12)) return false;
+    }
     return true;
+  }
+
+  // ---------- carbs ----------
+  var carbCache = { target: null, map: {} };
+
+  function carbsPerUnit(state, id) {
+    var c = state.customIngredients && state.customIngredients[id];
+    if (c) return c.carbs != null ? [c.carbs, c.fiber || 0] : null;
+    return NUTRITION[id] || null;
+  }
+
+  // Recipe ingredients as cooked for this household's settings. With a carb target,
+  // starchy sides (rice, pasta, tortillas, bread, potatoes) shrink, down to half, to fit it.
+  function ingredientsFor(state, r) {
+    var target = state.settings.carbTarget || 0;
+    if (!target) return r.ing;
+    if (carbCache.target !== target) carbCache = { target: target, map: {} };
+    var hit = carbCache.map[r.id];
+    if (hit) return hit.ing;
+    var starch = 0, rest = 0;
+    r.ing.forEach(function (p) {
+      var n = carbsPerUnit(state, p[0]);
+      if (!n) return;
+      if (STARCHES.indexOf(p[0]) >= 0) starch += n[0] * p[1]; else rest += n[0] * p[1];
+    });
+    var serves = r.serves || 4;
+    var factor = 1;
+    if (starch > 0 && (starch + rest) / serves > target) {
+      factor = Math.max(0.5, Math.min(1, (target * serves - rest) / starch));
+    }
+    var out = factor === 1 ? r.ing : r.ing.map(function (p) {
+      return STARCHES.indexOf(p[0]) >= 0 ? [p[0], Math.round(p[1] * factor * 100) / 100] : p;
+    });
+    carbCache.map[r.id] = { ing: out, factor: factor };
+    return out;
+  }
+
+  // Per-serving carbs, fiber and added sugar in grams for this household's version of the recipe.
+  function nutrition(state, r) {
+    var list = ingredientsFor(state, r);
+    var carbs = 0, fiber = 0, sugar = 0, known = true;
+    list.forEach(function (p) {
+      var n = carbsPerUnit(state, p[0]);
+      if (!n) { known = false; return; }
+      carbs += n[0] * p[1];
+      fiber += n[1] * p[1];
+      if (ADDED_SUGAR.indexOf(p[0]) >= 0) sugar += n[0] * p[1];
+    });
+    var serves = r.serves || 4;
+    var hit = carbCache.map[r.id];
+    var smaller = hit && hit.factor < 1 ? r.ing.filter(function (p) { return STARCHES.indexOf(p[0]) >= 0; }).map(function (p) { return p[0]; }) : [];
+    return {
+      carbs: Math.round(carbs / serves), fiber: Math.round(fiber / serves), sugar: Math.round(sugar / serves),
+      known: known, smaller: smaller
+    };
   }
 
   // Pantry amount on hand right now (Infinity for "always have").
@@ -69,7 +128,7 @@ var Planner = (function () {
 
   function addNeeds(state, needs, r) {
     var k = scaleFor(state, r);
-    r.ing.forEach(function (pair) {
+    ingredientsFor(state, r).forEach(function (pair) {
       needs[pair[0]] = (needs[pair[0]] || 0) + pair[1] * k;
     });
   }
@@ -92,7 +151,7 @@ var Planner = (function () {
   // Proportional cost per serving (what one plate uses), ignoring the pantry.
   function servingCost(state, r) {
     var sum = 0;
-    r.ing.forEach(function (pair) {
+    ingredientsFor(state, r).forEach(function (pair) {
       var i = ing(state, pair[0]);
       if (i) sum += pair[1] * price(state, pair[0]) / i.pack;
     });
@@ -108,6 +167,13 @@ var Planner = (function () {
     if (s.kids && r.tags.indexOf('kid') >= 0) score += 0.4;
     if (recent && recent[r.id]) score -= 0.9;
     if (r.custom) score += 0.5;
+    if (s.carbTarget) {
+      var n = nutrition(state, r);
+      if (n.fiber >= 7) score += 0.4;
+      score += Math.max(0, (s.carbTarget - n.carbs) / s.carbTarget) * 0.5;
+      if (n.sugar > 6) score -= 0.4;
+      if (n.smaller.length) score -= 0.15;
+    }
     return score;
   }
 
@@ -138,8 +204,13 @@ var Planner = (function () {
     var perMeal = budget / Math.max(1, count + fixed.length);
     var best = null;
 
+    // If no plan fits the budget, try again leaning harder on price.
     var attempts = count > 7 ? 30 : 60;
-    for (var attempt = 0; attempt < attempts; attempt++) {
+    var weights = [0.55, 1.6, 3.5];
+    for (var attempt = 0; attempt < attempts * weights.length; attempt++) {
+      var round = Math.floor(attempt / attempts);
+      if (round > 0 && attempt % attempts === 0 && best && best.cost <= budget) break;
+      var costWeight = weights[round];
       var picked = fixed.slice();
       var baseCost = costOf(state, picked, today);
       var prefTotal = 0;
@@ -151,7 +222,7 @@ var Planner = (function () {
           var c = costOf(state, picked.concat([r]), today);
           var marginal = c - baseCost;
           var u = preference(state, r, recent) - varietyPenalty(picked, r)
-            - (marginal / perMeal) * 0.55 + Math.random() * 1.1;
+            - (marginal / perMeal) * costWeight + Math.random() * 1.1;
           if (u > bestU) { bestU = u; bestR = r; bestCost = c; }
         }
         picked.push(bestR);
@@ -217,7 +288,7 @@ var Planner = (function () {
       if (!r) return;
       var week = daysBetween(start, d.date) >= 7 ? 2 : 1;
       var k = scaleFor(state, r);
-      r.ing.forEach(function (pair) {
+      ingredientsFor(state, r).forEach(function (pair) {
         needs[pair[0]] = (needs[pair[0]] || 0) + pair[1] * k;
         weekOf[pair[0]] = weekOf[pair[0]] ? Math.min(weekOf[pair[0]], week) : week;
       });
@@ -302,6 +373,7 @@ var Planner = (function () {
     LIFE_DAYS: LIFE_DAYS,
     allRecipes: allRecipes, recipe: recipe, ing: ing, price: price,
     allowed: allowed, isVegetarian: isVegetarian, flagsOf: flagsOf,
+    ingredientsFor: ingredientsFor, nutrition: nutrition,
     pantryQty: pantryQty, scaleFor: scaleFor,
     costOf: costOf, servingCost: servingCost, choose: choose,
     planRecipes: planRecipes, planCost: planCost, swapOptions: swapOptions,

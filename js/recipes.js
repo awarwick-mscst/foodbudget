@@ -549,5 +549,116 @@ var RECIPES = [
       'Add the tomatoes and drained beans with 1 cup water. Simmer 25 minutes.',
       'Serve with cheese and sour cream.'
     ]
+  },
+
+  // Lower-carb dinners: built around protein, beans and non-starchy vegetables.
+  {
+    id: 'lettucewraps', name: 'Turkey taco lettuce wraps', cuisine: 'Mexican', protein: 'Turkey', min: 20, serves: 4,
+    tags: ['lowcarb'],
+    ing: [['groundturkey', 1], ['blackbeans', 1], ['chilipowder', 2], ['cumin', 1], ['garlicpowder', 1], ['lettuce', 1], ['tomato', 2], ['cheddar', 1], ['sourcream', 0.5], ['salsa', 0.5], ['vegoil', 1]],
+    steps: [
+      'Brown the turkey in oil. Stir in the spices, a pinch of salt and 1/4 cup water.',
+      'Add the drained beans and cook 3 minutes.',
+      'Separate the romaine into leaves and dice the tomatoes.',
+      'Spoon the filling into lettuce cups. Top with tomato, cheese, salsa and sour cream.'
+    ]
+  },
+  {
+    id: 'chickenvegpan', name: 'Sheet-pan chicken & vegetables', cuisine: 'Mediterranean', protein: 'Chicken', min: 35, serves: 4,
+    tags: ['sheetpan', 'lowcarb'],
+    ing: [['chickenthigh', 2], ['broccoli', 1], ['bellpepper', 2], ['zucchini', 1], ['oliveoil', 3], ['italianseasoning', 2], ['garlicpowder', 1], ['lemon', 1]],
+    steps: [
+      'Heat the oven to 425°F. Cut the chicken into large pieces and the vegetables into bite-size chunks.',
+      'Toss everything with the oil, seasoning, garlic powder and salt.',
+      'Spread on a sheet pan and roast 25 minutes, until the chicken is cooked and the edges brown.',
+      'Squeeze lemon over the top.'
+    ]
+  },
+  {
+    id: 'zucchinibeef', name: 'Cheesy beef & zucchini skillet', cuisine: 'Italian', protein: 'Beef', min: 25, serves: 4,
+    tags: ['onepot', 'lowcarb'],
+    ing: [['groundbeef', 1], ['zucchini', 3], ['dicedtom', 1], ['onion', 1], ['garlic', 2], ['italianseasoning', 1], ['mozzarella', 1], ['parmesan', 0.25], ['oliveoil', 1]],
+    steps: [
+      'Brown the beef with the chopped onion. Drain and add the garlic.',
+      'Add the sliced zucchini, tomatoes and seasoning. Cover and cook 8 minutes until tender.',
+      'Top with mozzarella and parmesan, cover, and cook 2 minutes to melt.'
+    ]
+  },
+  {
+    id: 'salmongreenbeans', name: 'Garlic butter salmon & green beans', cuisine: 'American', protein: 'Fish', min: 20, serves: 4,
+    tags: ['sheetpan', 'lowcarb'],
+    ing: [['salmon', 1.5], ['greenbeans', 3.5], ['lemon', 1], ['butter', 3], ['garlic', 3], ['oliveoil', 1]],
+    steps: [
+      'Thaw the salmon in the fridge overnight. Heat the oven to 400°F.',
+      'Toss the green beans with oil and salt on a sheet pan. Set the salmon beside them.',
+      'Melt the butter with the minced garlic and lemon juice and spoon it over the salmon.',
+      'Bake 12 to 15 minutes until the salmon flakes.'
+    ]
+  },
+  {
+    id: 'cauliburrito', name: 'Chicken burrito bowls with cauliflower rice', cuisine: 'Mexican', protein: 'Chicken', min: 30, serves: 4,
+    tags: ['lowcarb'],
+    ing: [['chickenthigh', 1.5], ['cauliflower', 1], ['blackbeans', 1], ['salsa', 1], ['cheddar', 1], ['lime', 1], ['chilipowder', 2], ['cumin', 1], ['vegoil', 2], ['cilantro', 1]],
+    steps: [
+      'Grate the cauliflower on a box grater, or pulse it in a food processor, until it looks like rice.',
+      'Season the chicken with chili powder, cumin and salt. Cook in 1 tbsp oil until done, then slice.',
+      'Cook the cauliflower in the rest of the oil 5 minutes. Add lime juice, chopped cilantro and salt.',
+      'Fill bowls with cauliflower rice, warm beans, chicken, salsa and cheese.'
+    ]
+  },
+  {
+    id: 'greeksalad', name: 'Greek-style chicken salad', cuisine: 'Mediterranean', protein: 'Chicken', min: 25, serves: 4,
+    tags: ['lowcarb'],
+    ing: [['chickenbreast', 1.5], ['lettuce', 2], ['cucumber', 1], ['tomato', 3], ['redonion', 1], ['chickpeas', 1], ['oliveoil', 4], ['lemon', 1], ['italianseasoning', 2]],
+    steps: [
+      'Season the chicken with half the Italian seasoning and salt. Cook in 1 tbsp oil, 6 minutes a side, then slice.',
+      'Whisk the rest of the oil with the lemon juice, the rest of the seasoning and salt.',
+      'Chop the romaine, cucumber, tomatoes and onion. Add the drained chickpeas.',
+      'Toss with the dressing and top with the chicken.'
+    ]
+  },
+  {
+    id: 'shrimpcauli', name: 'Garlic shrimp & broccoli over cauliflower rice', cuisine: 'Asian', protein: 'Shrimp', min: 25, serves: 4,
+    tags: ['lowcarb'],
+    ing: [['shrimp', 1], ['broccoli', 1], ['cauliflower', 1], ['soysauce', 3], ['garlic', 4], ['ginger', 1], ['vegoil', 2], ['greenonion', 1]],
+    steps: [
+      'Thaw the shrimp in cold water. Grate the cauliflower into rice-size pieces.',
+      'Cook the cauliflower in 1 tbsp oil 5 minutes. Season with salt and set aside.',
+      'Stir-fry the broccoli florets in the rest of the oil 4 minutes. Add the shrimp, garlic and ginger and cook 3 minutes.',
+      'Add the soy sauce. Serve over the cauliflower rice with green onions.'
+    ]
+  },
+  {
+    id: 'beanchili', name: 'Three-veg black bean chili', cuisine: 'American', protein: 'Beans', min: 35, serves: 4,
+    tags: ['onepot', 'freezer', 'lowcarb'],
+    ing: [['blackbeans', 1], ['kidneybeans', 1], ['dicedtom', 2], ['onion', 1], ['bellpepper', 1], ['zucchini', 1], ['chilipowder', 3], ['cumin', 2], ['garlic', 3], ['vegbroth', 2], ['oliveoil', 1], ['cheddar', 0.5]],
+    steps: [
+      'Cook the chopped onion and pepper in oil 5 minutes. Add the garlic and spices.',
+      'Add the drained beans, tomatoes, diced zucchini and broth.',
+      'Simmer 20 minutes until thick. Salt to taste.',
+      'Serve with cheese on top.'
+    ]
+  },
+  {
+    id: 'porkcaulimash', name: 'Pork chops with cauliflower mash', cuisine: 'American', protein: 'Pork', min: 30, serves: 4,
+    tags: ['lowcarb'],
+    ing: [['porkchop', 1.5], ['cauliflower', 1], ['butter', 3], ['garlic', 2], ['greenbeans', 3], ['paprika', 1], ['garlicpowder', 1], ['vegoil', 1]],
+    steps: [
+      'Cut the cauliflower into florets and boil 10 minutes until very soft. Drain well.',
+      'Mash with the butter, garlic and salt, or blend until smooth.',
+      'Rub the chops with paprika, garlic powder and salt. Sear in oil 4 to 5 minutes a side, to 145°F.',
+      'Heat the green beans and serve everything together.'
+    ]
+  },
+  {
+    id: 'eggmuffinbake', name: 'Spinach, pepper & cheese egg bake', cuisine: 'American', protein: 'Eggs', min: 35, serves: 4,
+    tags: ['lowcarb'],
+    ing: [['eggs', 10], ['milk', 0.5], ['spinach', 5], ['bellpepper', 1], ['onion', 0.5], ['cheddar', 1], ['mushroom', 4], ['butter', 1]],
+    steps: [
+      'Heat the oven to 375°F and butter a baking dish.',
+      'Cook the chopped onion, pepper and mushrooms in butter 5 minutes. Add the spinach until wilted.',
+      'Whisk the eggs, milk, cheese and salt. Stir in the vegetables and pour into the dish.',
+      'Bake 25 minutes until set in the middle.'
+    ]
   }
 ];

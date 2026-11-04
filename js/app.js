@@ -41,7 +41,8 @@
       version: 1,
       settings: {
         people: 2, budget: 75, nights: [1, 1, 1, 1, 1, 0, 0], weeks: 1, diet: 'none', avoid: [], cuisines: [],
-        maxMinutes: 0, priceLevel: 1, currency: '$', kids: false, onboarded: false
+        maxMinutes: 0, priceLevel: 1, currency: '$', kids: false, onboarded: false,
+        country: 'US', postal: '', store: 'unsure', carbTarget: 0
       },
       pantry: { salt: { plenty: true }, pepper: { plenty: true }, vegoil: { plenty: true } },
       ratings: {}, priceOverrides: {}, history: [], customRecipes: [], customIngredients: {}, plan: null
@@ -106,6 +107,35 @@
     return a.mon + ' ' + a.day + ' – ' + (a.mon === b.mon ? '' : b.mon + ' ') + b.day;
   }
   function weekBudget() { return state.settings.budget * (state.settings.weeks || 1); }
+  function carbText(r) {
+    var n = Planner.nutrition(state, r);
+    return n.known ? n.carbs + ' g carbs' : 'Carbs not known';
+  }
+  function carbSpan(r) {
+    return state.settings.carbTarget ? '<span>' + carbText(r) + '</span>' : '';
+  }
+
+  // ---------- location & store ----------
+  function updatePriceLevel() {
+    var s = state.settings;
+    s.priceLevel = Math.round(findStore(s.country, s.store).level * regionFactor(s.country, s.postal) * 1000) / 1000;
+  }
+  function priceNote() {
+    var s = state.settings;
+    var store = findStore(s.country, s.store);
+    var c = COUNTRIES[s.country] || COUNTRIES.OTHER;
+    var where = store.id === 'unsure' ? 'a typical store' : store.name.replace(/ \(.*\)$/, '');
+    var near = s.postal ? ' near ' + esc(s.postal.toUpperCase()) : '';
+    var region = regionFactor(s.country, s.postal) / (s.country === 'CA' ? CAD_FACTOR : 1);
+    var rel = Math.round((store.level * region - 1) * 100);
+    var vs = s.country === 'OTHER' ? '' : (rel === 0 ? ', about the same as a typical supermarket' : ', about ' + Math.abs(rel) + '% ' + (rel < 0 ? 'below' : 'above') + ' a typical supermarket');
+    return 'Prices estimated for ' + esc(where) + near + vs + '. ' + c.note + '.';
+  }
+  function suggestedBudget() {
+    var s = state.settings;
+    // Lower-carb dinners lean on meat and vegetables, which cost a bit more.
+    return Math.max(25, Math.round((30 + s.people * 15) * (s.priceLevel || 1) * (s.carbTarget ? 1.1 : 1) / 5) * 5);
+  }
 
   // ---------- plan ops ----------
   function buildPlan(start) {
@@ -160,7 +190,16 @@
 
   // ---------- shell ----------
   function render() {
-    var html = '<header class="topbar"><div class="brand">' + I.logo + '<span>FoodBudge</span></div>' +
+    var tabbar = document.getElementById('tabbar');
+    if (!state.settings.onboarded) {
+      app.innerHTML = renderWizard();
+      tabbar.hidden = true;
+      ui.sheet = null;
+      renderSheet();
+      return;
+    }
+    tabbar.hidden = false;
+    var html ='<header class="topbar"><div class="brand">' + I.logo + '<span>FoodBudge</span></div>' +
       (state.plan ? '<span class="small muted">' + rangeLabel(state.plan) + '</span>' : '') + '</header>' +
       '<main class="view" id="view">' + renderView() + '</main>';
     app.innerHTML = html;
@@ -217,10 +256,6 @@
     var plan = state.plan, t = today();
     var cost = Planner.planCost(state, plan, t);
     var out = '';
-    if (!state.settings.onboarded) {
-      out += '<div class="notice"><p><b>This is a sample week</b> for 2 people on a ' + money(75) + ' budget. Tell FoodBudge about your household and it will plan around you.</p>' +
-        '<div class="row"><button class="btn primary sm" data-act="tab" data-v="settings">Set up my household</button></div></div>';
-    }
     if (planEnded()) {
       out += '<div class="notice ice"><p><b>This plan has ended.</b> Start a new week. Extras from what you bought move to your pantry.</p>' +
         '<div class="row"><button class="btn primary sm" data-act="nextweek">Plan the next week</button></div></div>';
@@ -263,7 +298,7 @@
     var body;
     if (r) {
       body = '<button class="title" data-act="recipe" data-id="' + esc(r.id) + '" data-i="' + i + '">' + esc(r.name) + '</button>' +
-        '<div class="meta"><span>' + esc(r.cuisine) + '</span><span>' + r.min + ' min</span><span class="money">' + money(Planner.servingCost(state, r)) + '/serving</span>' +
+        '<div class="meta"><span>' + esc(r.cuisine) + '</span><span>' + r.min + ' min</span>' + carbSpan(r) + '<span class="money">' + money(Planner.servingCost(state, r)) + '/serving</span>' +
         (state.ratings[r.id] === 1 ? '<span class="tag good">Liked</span>' : '') + '</div>' +
         '<div class="actions"><button class="btn sm" data-act="swap" data-i="' + i + '">' + I.swap + 'Swap</button>' + sel + '</div>';
     } else if (d.status === 'cook') {
@@ -288,7 +323,7 @@
       return out + '<div class="empty"><p>Nothing to buy. Your pantry covers every dinner this week.</p></div>';
     }
     out += '<div class="row between"><h2>Shopping list</h2><span class="small muted">' + left + ' of ' + buy.length + ' left</span></div>';
-    out += '<p class="small muted">Prices are regular store-brand estimates for whole packs. Tap a price to set what your store charges.</p>';
+    out += '<p class="small muted">' + priceNote() + ' Regular store-brand prices for whole packs. Tap a price to set what your store charges.</p>';
     var now = buy.filter(function (x) { return !x.later; });
     var later = buy.filter(function (x) { return x.later; });
     var groups = {};
@@ -338,7 +373,7 @@
   // ---------- Recipes ----------
   function renderRecipes() {
     var q = ui.rQuery.trim().toLowerCase();
-    var filters = [['all', 'All'], ['liked', 'Liked'], ['cheap', 'Under ' + money(2)], ['quick', '25 min or less'], ['veg', 'Vegetarian'], ['slow', 'Slow cooker'], ['mine', 'My recipes']];
+    var filters = [['all', 'All'], ['liked', 'Liked'], ['cheap', 'Under ' + money(2)], ['quick', '25 min or less'], ['veg', 'Vegetarian'], ['carb', 'Lower carb'], ['slow', 'Slow cooker'], ['mine', 'My recipes']];
     var list = Planner.allRecipes(state).map(function (r) { return { r: r, cost: Planner.servingCost(state, r) }; });
     list = list.filter(function (x) {
       var r = x.r;
@@ -349,6 +384,7 @@
         case 'quick': return r.min <= 25;
         case 'veg': return Planner.isVegetarian(state, r);
         case 'slow': return r.tags.indexOf('slowcooker') >= 0;
+        case 'carb': var n = Planner.nutrition(state, r); return n.known && n.carbs <= (state.settings.carbTarget || 45);
         case 'mine': return !!r.custom;
       }
       return true;
@@ -372,7 +408,7 @@
       return '<button class="rcard' + (ok ? '' : ' blocked') + '" data-act="recipe" data-id="' + esc(r.id) + '">' +
         '<span class="rname">' + esc(r.name) + '</span>' +
         '<span class="money">' + money(x.cost) + '<small>per serving</small></span>' +
-        '<span class="meta"><span>' + esc(r.cuisine) + '</span><span>·</span><span>' + r.min + ' min</span>' +
+        '<span class="meta"><span>' + esc(r.cuisine) + '</span><span>·</span><span>' + r.min + ' min</span>' + (state.settings.carbTarget ? '<span>·</span>' + carbSpan(r) : '') +
         (rating === 1 ? '<span class="tag good">Liked</span>' : '') + (rating === -1 ? '<span class="tag bad">Hidden</span>' : '') +
         (ok || rating === -1 ? '' : '<span class="tag">Outside your filters</span>') + (r.custom ? '<span class="tag ice">Yours</span>' : '') + '</span></button>';
     }).join('');
@@ -455,7 +491,7 @@
       '<div class="field"><span class="label">Diet</span><div class="chips">' + chip('diet', 'none', 'Eat everything') + chip('diet', 'pescatarian', 'No meat, fish OK') + chip('diet', 'vegetarian', 'Vegetarian') + '</div></div>' +
       '<div class="field"><span class="label">Leave out</span><div class="chips">' + AVOIDS.map(function (a) {
         return '<button class="chip" data-act="toggleList" data-k="avoid" data-v="' + a[0] + '" aria-pressed="' + (s.avoid.indexOf(a[0]) >= 0) + '">' + a[1] + '</button>';
-      }).join('') + '</div></div>' +
+      }).join('') + '</div></div>' + carbField() +
       '<div class="field"><span class="label">Favorite kinds of food</span><div class="chips">' + CUISINES.map(function (c) {
         return '<button class="chip" data-act="toggleList" data-k="cuisines" data-v="' + c + '" aria-pressed="' + (s.cuisines.indexOf(c) >= 0) + '">' + c + '</button>';
       }).join('') + '</div><span class="hint">Favorites show up more often.</span></div>' +
@@ -464,9 +500,11 @@
       '<div class="field"><span class="label">Kids at the table?</span><div class="chips">' + chip('kids', true, 'Yes, favor kid-friendly') + chip('kids', false, 'No') + '</div></div>' +
       '</section>';
 
-    out += '<section class="card"><h2>Where you shop</h2>' +
-      '<div class="field"><span class="label">Store prices</span><div class="chips">' + chip('priceLevel', 0.88, 'Discount (Aldi, Walmart)') + chip('priceLevel', 1, 'Typical supermarket') + chip('priceLevel', 1.18, 'Pricier store') + '</div>' +
-      '<span class="hint">Scales every estimate. You can also set exact prices on the grocery list.</span></div>' +
+    out += '<section class="card"><h2>Where you shop</h2>' + countryField() + postalField('postal') +
+      '<div class="field"><label for="store">Store</label><select class="input" id="store" data-change="store">' +
+      storeChoices().map(function (st) {
+        return '<option value="' + st.id + '"' + (s.store === st.id ? ' selected' : '') + '>' + esc(st.name) + '</option>';
+      }).join('') + '</select><span class="hint" id="pricenote">' + priceNote() + '</span></div>' +
       '<div class="field"><label for="currency">Currency symbol</label><input class="input" id="currency" style="max-width:120px" value="' + esc(s.currency) + '" data-change="currency"></div>' +
       (Object.keys(state.priceOverrides).length ? '<button class="btn sm" data-act="resetprices">Clear my ' + Object.keys(state.priceOverrides).length + ' custom prices</button>' : '') +
       '</section>';
@@ -477,7 +515,8 @@
         return '<label><input type="checkbox" data-change="staple" data-id="' + id + '"' + (on ? ' checked' : '') + '>' + esc(INGREDIENTS[id].name) + '</label>';
       }).join('') + '</div></section>';
 
-    out += '<button class="btn primary block" data-act="replan">' + (s.onboarded ? 'Save and re-plan this week' : 'Plan my week') + '</button>';
+    out += '<button class="btn primary block" data-act="replan">Save and re-plan this week</button>' +
+      '<button class="btn block" data-act="rerunsetup">Go through the setup questions again</button>';
 
     out += '<section class="card"><h2>Share with your household</h2><p class="small muted">Copy this code and paste it into FoodBudge on another phone to load the same week and list. Send a new code after changes.</p>' +
       '<div class="codebox" id="sharecode">' + esc(shareCode()) + '</div><div class="row"><button class="btn sm" data-act="copy" data-target="sharecode">Copy code</button></div>' +
@@ -500,6 +539,111 @@
   }
   function chip(k, v, label) {
     return '<button class="chip" data-act="set" data-k="' + k + '" data-v="' + esc(JSON.stringify(v)) + '" aria-pressed="' + (state.settings[k] === v) + '">' + label + '</button>';
+  }
+  function carbField() {
+    return '<div class="field"><span class="label">Managing diabetes or watching carbs?</span><div class="chips">' +
+      chip('carbTarget', 0, 'No') + chip('carbTarget', 30, 'Yes, about 30 g per dinner') + chip('carbTarget', 45, 'Yes, about 45 g') + chip('carbTarget', 60, 'Yes, about 60 g') + '</div>' +
+      '<span class="hint">FoodBudge picks dinners near that amount, serves smaller portions of rice, pasta, bread and potatoes when needed, and avoids sugary sauces. Use the amount your doctor or dietitian gave you.</span></div>';
+  }
+  function storeChoices() {
+    return (STORES[state.settings.country] || STORES.OTHER).concat([STORE_UNSURE]);
+  }
+  function countryField() {
+    return '<div class="field"><span class="label">Country</span><div class="chips">' + Object.keys(COUNTRIES).map(function (c) {
+      return '<button class="chip" data-act="country" data-v="' + c + '" aria-pressed="' + (state.settings.country === c) + '">' + COUNTRIES[c].name + '</button>';
+    }).join('') + '</div></div>';
+  }
+  function postalField(id) {
+    var c = COUNTRIES[state.settings.country] || COUNTRIES.OTHER;
+    return '<div class="field"><label for="' + id + '">' + c.postal + '</label>' +
+      '<input class="input" id="' + id + '" style="max-width:200px" autocomplete="postal-code" value="' + esc(state.settings.postal) + '"' +
+      (c.example ? ' placeholder="e.g. ' + c.example + '"' : '') + ' data-input="postal">' +
+      '<span class="hint">Used only to estimate local prices. It stays on this phone.</span></div>';
+  }
+
+  // ---------- first-run wizard ----------
+  var WIZ = ['welcome', 'people', 'location', 'store', 'budget', 'nights', 'diet', 'likes', 'staples'];
+  function renderWizard() {
+    var s = state.settings;
+    var step = Math.min(ui.wizStep || 0, WIZ.length - 1);
+    var last = WIZ.length - 1;
+    var body = '';
+    switch (WIZ[step]) {
+      case 'welcome':
+        body = '<h1 class="wiz-title">Dinners that fit your grocery budget</h1>' +
+          '<p class="wiz-lead">Answer a few quick questions. FoodBudge plans a week of dinners you\'ll actually eat and a grocery list priced for your store.</p>' +
+          '<ul class="wiz-points"><li><b>Stays under budget.</b> Every dinner shows what it costs per serving.</li>' +
+          '<li><b>Wastes less.</b> Leftover ingredients get used in next week\'s dinners.</li>' +
+          '<li><b>Free.</b> No account. Your answers stay on this phone.</li></ul>';
+        break;
+      case 'people':
+        body = '<h1 class="wiz-title">How many people are you feeding?</h1>' +
+          '<div class="stepper big" role="group" aria-label="People eating"><button data-act="step" data-k="people" data-d="-1" aria-label="Fewer people">−</button><output>' + s.people + '</output><button data-act="step" data-k="people" data-d="1" aria-label="More people">+</button></div>' +
+          '<div class="field"><span class="label">Any kids at the table?</span><div class="chips">' + chip('kids', true, 'Yes, keep it kid friendly') + chip('kids', false, 'No kids') + '</div></div>';
+        break;
+      case 'location':
+        body = '<h1 class="wiz-title">Where do you live?</h1>' +
+          '<p class="wiz-lead">Grocery prices change from place to place. This helps FoodBudge estimate yours.</p>' +
+          countryField() + postalField('wiz-postal');
+        break;
+      case 'store':
+        body = '<h1 class="wiz-title">Where do you usually shop?</h1>' +
+          '<div class="opts">' + storeChoices().map(function (st) {
+            return '<button class="opt" data-act="store" data-v="' + st.id + '" aria-pressed="' + (s.store === st.id) + '"><span>' + esc(st.name) + '</span>' + storeTier(st) + '</button>';
+          }).join('') + '</div><p class="small muted" id="pricenote">' + priceNote() + '</p>';
+        break;
+      case 'budget':
+        var sug = suggestedBudget();
+        body = '<h1 class="wiz-title">What do you want to spend on dinners each week?</h1>' +
+          '<div class="stepper big"><button data-act="step" data-k="budget" data-d="-5" aria-label="Lower budget">−</button><label class="sr" for="wiz-budget">Weekly budget</label><input id="wiz-budget" inputmode="decimal" value="' + s.budget + '" data-change="setnum" data-k="budget"><button data-act="step" data-k="budget" data-d="5" aria-label="Raise budget">+</button></div>' +
+          '<p class="wiz-lead">For ' + s.people + ' ' + (s.people === 1 ? 'person' : 'people') + ' at your store, about <b class="money">' + money(sug) + '</b> a week covers five dinners.</p>' +
+          (s.budget !== sug ? '<div><button class="btn sm" data-act="set" data-k="budget" data-v="' + sug + '">Use ' + money(sug) + '</button></div>' : '') +
+          '<p class="small muted">This is for dinner groceries only. FoodBudge keeps every plan under it.</p>';
+        break;
+      case 'nights':
+        body = '<h1 class="wiz-title">Which nights do you cook?</h1>' +
+          '<div class="chips week">' + DAY_ORDER.map(function (d) {
+            return '<button class="chip day" data-act="night" data-d="' + d + '" aria-pressed="' + (!!s.nights[d]) + '">' + DAY_SHORT[d] + '</button>';
+          }).join('') + '</div><p class="small muted">Other nights are left open for leftovers or eating out. You can change any night later.</p>' +
+          '<div class="field"><span class="label">How often do you want to shop?</span><div class="chips">' + chip('weeks', 1, 'Every week') + chip('weeks', 2, 'Every two weeks') + '</div>' +
+          '<span class="hint">With two weeks, fresh produce for week 2 goes on a short list to buy later.</span></div>';
+        break;
+      case 'diet':
+        body = '<h1 class="wiz-title">Anything you don\'t eat?</h1>' +
+          '<div class="field"><span class="label">Diet</span><div class="chips">' + chip('diet', 'none', 'I eat everything') + chip('diet', 'pescatarian', 'No meat, fish is OK') + chip('diet', 'vegetarian', 'Vegetarian') + '</div></div>' +
+          '<div class="field"><span class="label">Leave these out</span><div class="chips">' + AVOIDS.map(function (a) {
+            return '<button class="chip" data-act="toggleList" data-k="avoid" data-v="' + a[0] + '" aria-pressed="' + (s.avoid.indexOf(a[0]) >= 0) + '">' + a[1] + '</button>';
+          }).join('') + '</div></div>' + carbField();
+        break;
+      case 'likes':
+        body = '<h1 class="wiz-title">What do you like to eat?</h1>' +
+          '<div class="field"><span class="label">Pick your favorites</span><div class="chips">' + CUISINES.map(function (c) {
+            return '<button class="chip" data-act="toggleList" data-k="cuisines" data-v="' + c + '" aria-pressed="' + (s.cuisines.indexOf(c) >= 0) + '">' + c + '</button>';
+          }).join('') + '</div><span class="hint">Favorites come up more often. Skip this if you like a bit of everything.</span></div>' +
+          '<div class="field"><span class="label">Most time you want to spend cooking</span><div class="chips">' +
+          chip('maxMinutes', 25, '25 min') + chip('maxMinutes', 35, '35 min') + chip('maxMinutes', 45, '45 min') + chip('maxMinutes', 0, 'No limit') + '</div></div>';
+        break;
+      case 'staples':
+        body = '<h1 class="wiz-title">What\'s already in your kitchen?</h1>' +
+          '<p class="wiz-lead">Check the basics you have. They stay off your grocery list.</p><div class="checks">' +
+          COMMON_STAPLES.map(function (id) {
+            var on = state.pantry[id] && state.pantry[id].plenty;
+            return '<label><input type="checkbox" data-change="staple" data-id="' + id + '"' + (on ? ' checked' : '') + '>' + esc(INGREDIENTS[id].name) + '</label>';
+          }).join('') + '</div>';
+        break;
+    }
+    var top = '<header class="wiz-top"><div class="brand">' + I.logo + '<span>FoodBudge</span></div>' +
+      (step ? '<span class="small muted">' + step + ' of ' + last + '</span>' : '') + '</header>' +
+      (step ? '<div class="meter wiz-meter" role="progressbar" aria-valuemin="0" aria-valuemax="' + last + '" aria-valuenow="' + step + '"><i style="width:' + (step / last * 100).toFixed(1) + '%"></i></div>' : '');
+    var foot = '<footer class="wiz-foot">' + (step ? '<button class="btn" data-act="wizback">Back</button>' : '<span></span>') +
+      '<button class="btn primary" data-act="wiznext">' + (step === 0 ? 'Get started' : step === last ? 'Plan my week' : 'Next') + '</button></footer>';
+    return '<div class="wizard">' + top + '<section class="wiz-body">' + body + '</section>' + foot + '</div>';
+  }
+  function storeTier(st) {
+    if (st.id === 'unsure') return '';
+    if (st.level < 0.95) return '<span class="tag good">Low prices</span>';
+    if (st.level > 1.05) return '<span class="tag warn">Higher prices</span>';
+    return '<span class="tag">Average prices</span>';
   }
 
   // ---------- share / backup ----------
@@ -565,18 +709,29 @@
     var k = Planner.scaleFor(state, r);
     var people = state.settings.people;
     var rating = state.ratings[r.id];
-    var out = sheetHead(esc(r.name), esc(r.cuisine) + ' · ' + esc(r.protein));
+    var n = Planner.nutrition(state, r);
+    var out = sheetHead(esc(r.name), esc(r.cuisine) + ' · ' + esc(r.protein) + ' · makes ' + people + ' serving' + (people === 1 ? '' : 's'));
     out += '<div class="facts"><div class="fact"><span>Per serving</span><b>' + money(Planner.servingCost(state, r)) + '</b></div>' +
-      '<div class="fact"><span>Hands-on</span><b>' + r.min + ' min</b></div><div class="fact"><span>Makes</span><b>' + people + ' serving' + (people === 1 ? '' : 's') + '</b></div></div>';
+      '<div class="fact"><span>Hands-on</span><b>' + r.min + ' min</b></div>' +
+      '<div class="fact"><span>Carbs</span><b>' + (n.known ? n.carbs + ' g' : '?') + '</b></div>' +
+      '<div class="fact"><span>Fiber</span><b>' + (n.known ? n.fiber + ' g' : '?') + '</b></div></div>';
+    if (state.settings.carbTarget) {
+      var notes = [];
+      if (n.smaller.length) notes.push('Carb-smart portion: this uses less ' + n.smaller.map(function (id) { return Planner.ing(state, id).name.toLowerCase(); }).join(' and ') + ' than the original recipe to stay near ' + state.settings.carbTarget + ' g of carbs per serving.');
+      if (n.sugar > 0) notes.push('About ' + n.sugar + ' g of the carbs come from added sugar.');
+      if (!n.known) notes.push('Some ingredients have no carb data, so the count is incomplete.');
+      notes.push('Carb counts are estimates per serving. Check labels and follow your own care plan.');
+      out += '<div class="notice ice"><p class="small">' + notes.join(' ') + '</p></div>';
+    }
     var tags = r.tags.map(function (tg) {
-      return { sheetpan: 'Sheet pan', slowcooker: 'Slow cooker', onepot: 'One pot', kid: 'Kid friendly', spicy: 'Spicy', freezer: 'Freezes well' }[tg];
+      return { sheetpan: 'Sheet pan', slowcooker: 'Slow cooker', onepot: 'One pot', kid: 'Kid friendly', spicy: 'Spicy', freezer: 'Freezes well', lowcarb: 'Lower carb' }[tg];
     }).filter(Boolean);
     if (Planner.isVegetarian(state, r)) tags.push('Vegetarian');
     if (tags.length) out += '<div class="chips">' + tags.map(function (x) { return '<span class="tag">' + x + '</span>'; }).join('') + '</div>';
     out += '<div class="row">' +
       '<button class="btn sm' + (rating === 1 ? ' primary' : '') + '" data-act="rate" data-id="' + esc(r.id) + '" data-v="1" aria-pressed="' + (rating === 1) + '">' + I.up + (rating === 1 ? 'Liked' : 'Like') + '</button>' +
       '<button class="btn sm' + (rating === -1 ? ' danger' : '') + '" data-act="rate" data-id="' + esc(r.id) + '" data-v="-1" aria-pressed="' + (rating === -1) + '">' + I.down + (rating === -1 ? 'Hidden from plans' : 'Not for me') + '</button></div>';
-    out += '<h3>Ingredients</h3><ul class="ings">' + r.ing.map(function (p) {
+    out += '<h3>Ingredients</h3><ul class="ings">' + Planner.ingredientsFor(state, r).map(function (p) {
       var i = Planner.ing(state, p[0]);
       if (!i) return '';
       var q = p[1] * k;
@@ -610,7 +765,7 @@
       var dl = Math.round(o.delta * 100) / 100;
       return '<button class="swapopt" data-act="pick" data-i="' + i + '" data-id="' + esc(o.recipe.id) + '"><span class="rname" style="font-family:var(--display);font-weight:600">' + esc(o.recipe.name) + '</span>' +
         '<span class="delta ' + (dl < 0 ? 'down' : dl > 0 ? 'up' : '') + '">' + (dl > 0 ? '+' : '') + (dl === 0 ? '±' + money(0) : money(dl)) + '</span>' +
-        '<span class="small muted">' + esc(o.recipe.cuisine) + ' · ' + o.recipe.min + ' min · ' + money(Planner.servingCost(state, o.recipe)) + '/serving' + (state.ratings[o.recipe.id] === 1 ? ' · Liked' : '') + '</span></button>';
+        '<span class="small muted">' + esc(o.recipe.cuisine) + ' · ' + o.recipe.min + ' min · ' + (state.settings.carbTarget ? carbText(o.recipe) + ' · ' : '') + money(Planner.servingCost(state, o.recipe)) + '/serving' + (state.ratings[o.recipe.id] === 1 ? ' · Liked' : '') + '</span></button>';
     }).join('') + '</div>';
     if (!opts.length) out += '<div class="empty"><p>No other recipes fit your filters. Loosen them in Setup or add your own recipe.</p></div>';
     if (!ui.showAllSwaps) out += '<button class="btn block" data-act="allswaps">Show every recipe</button>';
@@ -747,6 +902,7 @@
       var k = el.dataset.k, d = +el.dataset.d;
       var min = k === 'people' ? 1 : 10, max = k === 'people' ? 12 : 1000;
       state.settings[k] = Math.max(min, Math.min(max, Math.round((state.settings[k] + d) * 100) / 100));
+      if (k === 'budget') ui.budgetTouched = true;
       save(); render();
     },
     night: function (el) {
@@ -754,13 +910,44 @@
       state.settings.nights[d] = state.settings.nights[d] ? 0 : 1;
       save(); render();
     },
-    set: function (el) { state.settings[el.dataset.k] = JSON.parse(el.dataset.v); save(); render(); },
+    set: function (el) {
+      state.settings[el.dataset.k] = JSON.parse(el.dataset.v);
+      if (el.dataset.k === 'budget') ui.budgetTouched = true;
+      save(); render();
+    },
     toggleList: function (el) {
       var list = state.settings[el.dataset.k], v = el.dataset.v, at = list.indexOf(v);
       if (at >= 0) list.splice(at, 1); else list.push(v);
       save(); render();
     },
     resetprices: function () { state.priceOverrides = {}; save(); render(); toast('Back to estimated prices'); },
+    wiznext: function () {
+      var step = ui.wizStep || 0;
+      if (WIZ[step] === 'nights' && !state.settings.nights.some(Boolean)) { toast('Pick at least one night'); return; }
+      if (step >= WIZ.length - 1) {
+        state.settings.onboarded = true;
+        state.plan = buildPlan(today());
+        ui.wizStep = 0;
+        save(); go('plan'); toast('Your week is planned');
+        return;
+      }
+      ui.wizStep = step + 1;
+      if (WIZ[ui.wizStep] === 'budget' && !ui.budgetTouched) state.settings.budget = suggestedBudget();
+      save(); render(); window.scrollTo(0, 0);
+    },
+    wizback: function () { ui.wizStep = Math.max(0, (ui.wizStep || 0) - 1); render(); window.scrollTo(0, 0); },
+    country: function (el) {
+      var s = state.settings;
+      if (s.country !== el.dataset.v) { s.country = el.dataset.v; s.store = 'unsure'; s.postal = ''; }
+      s.currency = COUNTRIES[s.country].currency;
+      updatePriceLevel(); save(); render();
+    },
+    store: function (el) { state.settings.store = el.dataset.v; updatePriceLevel(); save(); render(); },
+    rerunsetup: function () {
+      state.settings.onboarded = false;
+      ui.wizStep = 1; ui.budgetTouched = true;
+      save(); render(); window.scrollTo(0, 0);
+    },
     replan: function () {
       state.settings.onboarded = true;
       var start = state.plan && !planEnded() ? state.plan.start : today();
@@ -823,9 +1010,13 @@
       save(); render();
       toast(d.status === 'cook' ? 'Dinner added' : 'Groceries for that night removed');
     } else if (k === 'setnum') {
+      // No re-render here: the change fires on blur, and re-rendering would swallow a tap on Next.
       var n = parseFloat(el.value);
       if (n > 0) { state.settings[el.dataset.k] = n; save(); }
-      render();
+      if (el.dataset.k === 'budget') ui.budgetTouched = true;
+    } else if (k === 'store') {
+      state.settings.store = el.value; updatePriceLevel(); save();
+      var note = document.getElementById('pricenote'); if (note) note.innerHTML = priceNote();
     } else if (k === 'currency') {
       state.settings.currency = el.value.trim().slice(0, 4) || '$'; save(); render();
     } else if (k === 'staple') {
@@ -835,6 +1026,11 @@
     }
   });
   document.addEventListener('input', function (e) {
+    if (e.target.dataset.input === 'postal') {
+      state.settings.postal = e.target.value.trim().slice(0, 10);
+      updatePriceLevel(); save();
+      var note = document.getElementById('pricenote'); if (note) note.innerHTML = priceNote();
+    }
     if (e.target.dataset.input === 'rquery') {
       ui.rQuery = e.target.value;
       var list = document.getElementById('rlist');

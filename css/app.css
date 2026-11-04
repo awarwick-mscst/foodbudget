@@ -278,3 +278,32 @@ textarea.input { min-height: 120px; resize: vertical; }
   .facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .checks { grid-template-columns: 1fr; }
 }
+
+/* First-run wizard: one question per screen, Back/Next pinned to the bottom. */
+.wizard { min-height: 100vh; display: flex; flex-direction: column; }
+.app:has(.wizard) { padding-block: 0; }
+.wiz-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-block: 16px 12px; }
+.wiz-meter { height: 6px; }
+.wiz-body { flex: 1; display: grid; gap: 20px; align-content: start; padding-block: 28px 24px; }
+.wiz-title { font-size: clamp(1.7rem, 7vw, 2.2rem); font-weight: 800; letter-spacing: -.02em; }
+.wiz-lead { font-size: 1.05rem; color: var(--muted); max-width: 34em; }
+.wiz-lead b { color: var(--ink); }
+.wiz-points { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.wiz-points li { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; }
+.wiz-foot {
+  position: sticky; bottom: 0; background: var(--paper); display: flex; justify-content: space-between; gap: 12px;
+  padding-block: 12px calc(16px + env(safe-area-inset-bottom, 0px)); border-top: 1px solid var(--line);
+}
+.wiz-foot .btn { min-width: 112px; min-height: 48px; font-size: 1rem; }
+.stepper.big { padding: 6px; justify-self: start; }
+.stepper.big button { width: 52px; height: 52px; font-size: 1.5rem; }
+.stepper.big output, .stepper.big input { font-size: 1.8rem; width: 96px; }
+.opts { display: grid; gap: 8px; }
+.opt {
+  display: flex; justify-content: space-between; align-items: center; gap: 12px; text-align: left; width: 100%;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 13px 14px; font-weight: 700; min-height: 52px;
+}
+.opt[aria-pressed="true"] { border-color: var(--basil); background: var(--basil-soft); box-shadow: inset 0 0 0 1px var(--basil); }
+.opt .tag { flex: none; }
+.facts { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@media (max-width: 460px) { .facts { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

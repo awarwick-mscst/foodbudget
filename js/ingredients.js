@@ -32,6 +32,7 @@ var INGREDIENTS = {
   mushroom:     { name: 'White mushrooms', aisle: 'Produce', unit: 'oz', pack: 8, label: '8 oz pack', price: 2.29, life: 'days' },
   cucumber:     { name: 'Cucumber', aisle: 'Produce', unit: 'each', pack: 1, label: '1 cucumber', price: 0.79, life: 'days' },
   avocado:      { name: 'Avocado', aisle: 'Produce', unit: 'each', pack: 1, label: '1 avocado', price: 1.25, life: 'days' },
+  cauliflower:  { name: 'Cauliflower', aisle: 'Produce', unit: 'head', pack: 1, label: '1 head', price: 2.99, life: 'days' },
   ginger:       { name: 'Fresh ginger', aisle: 'Produce', unit: 'inch', pack: 4, label: 'small knob', price: 0.80, life: 'weeks', freeze: true },
 
   // Meat & Seafood

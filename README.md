@@ -17,13 +17,19 @@ No account, no server, no subscription. Everything is saved on the phone.
 - **Your store's prices**: tap any price to set what your store charges. It's remembered.
 - **Pantry**: tap "I have it" to take something off the list. After you shop, the rest of each pack moves to the pantry the next week, with use-by reminders and freeze tips.
 - **Thaw reminder**: the night before a dinner with meat or fish.
+- **Diabetes-friendly mode**: pick a carb target per dinner (30, 45 or 60 g). Plans stay near it, starchy sides get smaller portions when needed, sugary sauces are avoided, and every recipe shows carbs and fiber per serving. Carb counts are estimates.
 - **Likes and dislikes**: liked dinners come up more, disliked ones stop showing up.
 - **Your own recipes**: add family recipes; they get priced and planned like the rest.
 - **Share with your household**: copy a plan code and paste it on another phone.
 - **Backup**: copy all your data as text and restore it on a new phone.
 
-Prices are estimates of regular US store-brand prices (late 2026). Use the store setting
-(discount / typical / pricier) or set exact prices on the list.
+The first time someone opens the app, a setup wizard asks how many people they feed, where
+they live (ZIP or postal code), which store they use, their budget, which nights they cook,
+what they don't eat and what they like.
+
+Prices are estimates of regular US store-brand prices (late 2026), adjusted for the chosen
+store and area (Canada is priced in Canadian dollars). They aren't live store prices, so
+people can also set exact prices on the grocery list.
 
 ## Try it on your computer
 
