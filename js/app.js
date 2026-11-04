@@ -112,7 +112,9 @@
     return n.known ? n.carbs + ' g carbs' : 'Carbs not known';
   }
   function carbSpan(r) {
-    return state.settings.carbTarget ? '<span>' + carbText(r) + '</span>' : '';
+    if (state.settings.carbTarget) return '<span>' + carbText(r) + '</span>';
+    var n = Planner.nutrition(state, r);
+    return n.known ? '<span>' + n.calories + ' cal</span>' : '';
   }
 
   // ---------- location & store ----------
@@ -373,8 +375,9 @@
   // ---------- Recipes ----------
   function renderRecipes() {
     var q = ui.rQuery.trim().toLowerCase();
-    var filters = [['all', 'All'], ['liked', 'Liked'], ['cheap', 'Under ' + money(2)], ['quick', '25 min or less'], ['veg', 'Vegetarian'], ['carb', 'Lower carb'], ['slow', 'Slow cooker'], ['mine', 'My recipes']];
+    var filters = [['all', 'All'], ['liked', 'Liked'], ['cheap', 'Under ' + money(2)], ['quick', '25 min or less'], ['veg', 'Vegetarian'], ['carb', 'Lower carb'], ['protein', '30 g+ protein'], ['light', 'Under 500 cal'], ['slow', 'Slow cooker'], ['mine', 'My recipes']];
     var list = Planner.allRecipes(state).map(function (r) { return { r: r, cost: Planner.servingCost(state, r) }; });
+    var nut = function (r) { return Planner.nutrition(state, r); };
     list = list.filter(function (x) {
       var r = x.r;
       if (q && (r.name + ' ' + r.cuisine + ' ' + r.protein).toLowerCase().indexOf(q) < 0) return false;
@@ -384,7 +387,9 @@
         case 'quick': return r.min <= 25;
         case 'veg': return Planner.isVegetarian(state, r);
         case 'slow': return r.tags.indexOf('slowcooker') >= 0;
-        case 'carb': var n = Planner.nutrition(state, r); return n.known && n.carbs <= (state.settings.carbTarget || 45);
+        case 'carb': return nut(r).known && nut(r).carbs <= (state.settings.carbTarget || 45);
+        case 'protein': return nut(r).known && nut(r).protein >= 30;
+        case 'light': return nut(r).known && nut(r).calories < 500;
         case 'mine': return !!r.custom;
       }
       return true;
@@ -408,7 +413,7 @@
       return '<button class="rcard' + (ok ? '' : ' blocked') + '" data-act="recipe" data-id="' + esc(r.id) + '">' +
         '<span class="rname">' + esc(r.name) + '</span>' +
         '<span class="money">' + money(x.cost) + '<small>per serving</small></span>' +
-        '<span class="meta"><span>' + esc(r.cuisine) + '</span><span>·</span><span>' + r.min + ' min</span>' + (state.settings.carbTarget ? '<span>·</span>' + carbSpan(r) : '') +
+        '<span class="meta"><span>' + esc(r.cuisine) + '</span><span>·</span><span>' + r.min + ' min</span>' + (carbSpan(r) ? '<span>·</span>' + carbSpan(r) : '') +
         (rating === 1 ? '<span class="tag good">Liked</span>' : '') + (rating === -1 ? '<span class="tag bad">Hidden</span>' : '') +
         (ok || rating === -1 ? '' : '<span class="tag">Outside your filters</span>') + (r.custom ? '<span class="tag ice">Yours</span>' : '') + '</span></button>';
     }).join('');
@@ -713,8 +718,11 @@
     var out = sheetHead(esc(r.name), esc(r.cuisine) + ' · ' + esc(r.protein) + ' · makes ' + people + ' serving' + (people === 1 ? '' : 's'));
     out += '<div class="facts"><div class="fact"><span>Per serving</span><b>' + money(Planner.servingCost(state, r)) + '</b></div>' +
       '<div class="fact"><span>Hands-on</span><b>' + r.min + ' min</b></div>' +
-      '<div class="fact"><span>Carbs</span><b>' + (n.known ? n.carbs + ' g' : '?') + '</b></div>' +
-      '<div class="fact"><span>Fiber</span><b>' + (n.known ? n.fiber + ' g' : '?') + '</b></div></div>';
+      (state.settings.carbTarget
+        ? '<div class="fact"><span>Carbs</span><b>' + (n.known ? n.carbs + ' g' : '?') + '</b></div><div class="fact"><span>Fiber</span><b>' + (n.known ? n.fiber + ' g' : '?') + '</b></div>'
+        : '<div class="fact"><span>Calories</span><b>' + (n.known ? n.calories : '?') + '</b></div><div class="fact"><span>Protein</span><b>' + (n.known ? n.protein + ' g' : '?') + '</b></div>') +
+      '</div>';
+    if (r.note) out += '<p class="small muted">' + esc(r.note) + '</p>';
     if (state.settings.carbTarget) {
       var notes = [];
       if (n.smaller.length) notes.push('Carb-smart portion: this uses less ' + n.smaller.map(function (id) { return Planner.ing(state, id).name.toLowerCase(); }).join(' and ') + ' than the original recipe to stay near ' + state.settings.carbTarget + ' g of carbs per serving.');
@@ -724,7 +732,7 @@
       out += '<div class="notice ice"><p class="small">' + notes.join(' ') + '</p></div>';
     }
     var tags = r.tags.map(function (tg) {
-      return { sheetpan: 'Sheet pan', slowcooker: 'Slow cooker', onepot: 'One pot', kid: 'Kid friendly', spicy: 'Spicy', freezer: 'Freezes well', lowcarb: 'Lower carb' }[tg];
+      return { sheetpan: 'Sheet pan', slowcooker: 'Slow cooker', onepot: 'One pot', kid: 'Kid friendly', spicy: 'Spicy', freezer: 'Freezes well', lowcarb: 'Lower carb', mealprep: 'Good for meal prep' }[tg];
     }).filter(Boolean);
     if (Planner.isVegetarian(state, r)) tags.push('Vegetarian');
     if (tags.length) out += '<div class="chips">' + tags.map(function (x) { return '<span class="tag">' + x + '</span>'; }).join('') + '</div>';
@@ -738,6 +746,7 @@
       var have = Planner.pantryQty(state, p[0], t) >= q;
       return '<li><span>' + esc(i.name.replace(/ \(frozen\)/, '')) + (have ? ' <span class="have">in pantry</span>' : '') + '</span><span class="q">' + amount(q, i) + '</span></li>';
     }).join('') + '<li><span class="muted small">Plus salt and pepper to taste</span><span></span></li></ul>';
+    out += nutritionPanel(n);
     out += '<h3>Steps</h3><ol class="steps">' + r.steps.map(function (s) { return '<li><span>' + esc(s) + '</span></li>'; }).join('') + '</ol>';
     if (dayIndex != null) {
       out += '<button class="btn block" data-act="swap" data-i="' + dayIndex + '">' + I.swap + 'Swap this dinner</button>';
@@ -753,6 +762,23 @@
     }
     if (r.custom) out += '<button class="btn danger sm" data-act="delrecipe" data-id="' + esc(r.id) + '">Delete this recipe</button>';
     return out;
+  }
+  function nutritionPanel(n) {
+    if (!n.known) return '<p class="small muted">Nutrition isn\'t available for recipes with ingredients that have no nutrition data.</p>';
+    var rows = [
+      ['Calories', n.calories, ''],
+      ['Protein', n.protein, ' g'],
+      ['Fat', n.fat, ' g'],
+      ['Carbs', n.carbs, ' g'],
+      ['Fiber', n.fiber, ' g', true],
+      ['Added sugar', n.sugar, ' g', true],
+      ['Sodium', n.sodium, ' mg']
+    ];
+    return '<section class="nutri" aria-label="Nutrition per serving"><h3>Nutrition <span class="muted small">per serving</span></h3>' +
+      '<dl>' + rows.map(function (x) {
+        return '<div' + (x[3] ? ' class="sub"' : '') + '><dt>' + x[0] + '</dt><dd>' + x[1] + x[2] + '</dd></div>';
+      }).join('') + '</dl>' +
+      '<p class="small muted">Estimated from typical ingredient data. Salt you add to taste isn\'t counted.</p></section>';
   }
   function swapSheet(i) {
     var d = state.plan.days[i];

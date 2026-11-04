@@ -45,6 +45,8 @@ var INGREDIENTS = {
   porkshoulder: { name: 'Pork shoulder', aisle: 'Meat & Seafood', unit: 'lb', pack: 3, label: '~3 lb roast', price: 8.99, life: 'days', freeze: true, flags: 'mp' },
   sausage:      { name: 'Smoked sausage', aisle: 'Meat & Seafood', unit: 'oz', pack: 13, label: '13 oz rope', price: 3.49, life: 'weeks', freeze: true, flags: 'mp' },
   italiansausage:{ name: 'Italian sausage', aisle: 'Meat & Seafood', unit: 'lb', pack: 1, label: '1 lb', price: 4.49, life: 'days', freeze: true, flags: 'mp' },
+  leanbeef:     { name: 'Lean ground beef 96/4', aisle: 'Meat & Seafood', unit: 'lb', pack: 1, label: '1 lb', price: 7.49, life: 'days', freeze: true, flags: 'mb' },
+  rotisserie:   { name: 'Rotisserie chicken', aisle: 'Meat & Seafood', unit: 'cup', pack: 3, label: '1 whole chicken (about 3 cups meat)', price: 6.99, life: 'days', freeze: true, flags: 'm' },
   bacon:        { name: 'Bacon', aisle: 'Meat & Seafood', unit: 'slice', pack: 14, label: '12 oz pack', price: 5.49, life: 'weeks', freeze: true, flags: 'mp' },
 
   // Dairy & Eggs
@@ -56,6 +58,10 @@ var INGREDIENTS = {
   parmesan:     { name: 'Grated parmesan', aisle: 'Dairy & Eggs', unit: 'cup', pack: 2, label: '8 oz canister', price: 3.99, life: 'months', flags: 'd' },
   sourcream:    { name: 'Sour cream', aisle: 'Dairy & Eggs', unit: 'cup', pack: 2, label: '16 oz tub', price: 2.29, life: 'weeks', flags: 'd' },
   heavycream:   { name: 'Heavy cream', aisle: 'Dairy & Eggs', unit: 'cup', pack: 2, label: '16 oz carton', price: 3.99, life: 'weeks', flags: 'd' },
+  creamcheese:  { name: 'Reduced-fat cream cheese', aisle: 'Dairy & Eggs', unit: 'oz', pack: 8, label: '8 oz block', price: 2.29, life: 'weeks', flags: 'd' },
+  ricotta:      { name: 'Ricotta', aisle: 'Dairy & Eggs', unit: 'cup', pack: 1.75, label: '15 oz tub', price: 3.49, life: 'weeks', flags: 'd' },
+  feta:         { name: 'Crumbled feta', aisle: 'Dairy & Eggs', unit: 'cup', pack: 1, label: '4 oz tub', price: 3.29, life: 'weeks', flags: 'd' },
+  tofu:         { name: 'Firm tofu', aisle: 'Dairy & Eggs', unit: 'each', pack: 1, label: '14 oz block', price: 2.29, life: 'weeks' },
   pizzadough:   { name: 'Pizza dough', aisle: 'Dairy & Eggs', unit: 'each', pack: 1, label: '1 lb ball', price: 2.99, life: 'days', freeze: true, flags: 'g' },
 
   // Bakery
@@ -73,10 +79,18 @@ var INGREDIENTS = {
   blackbeans:   { name: 'Black beans', aisle: 'Canned & Jarred', unit: 'can', pack: 1, label: '15 oz can', price: 0.99, life: 'months' },
   kidneybeans:  { name: 'Kidney beans', aisle: 'Canned & Jarred', unit: 'can', pack: 1, label: '15 oz can', price: 0.99, life: 'months' },
   chickpeas:    { name: 'Chickpeas', aisle: 'Canned & Jarred', unit: 'can', pack: 1, label: '15 oz can', price: 0.99, life: 'months' },
+  whitebeans:   { name: 'White beans (cannellini)', aisle: 'Canned & Jarred', unit: 'can', pack: 1, label: '15 oz can', price: 0.99, life: 'months' },
+  pintobeans:   { name: 'Pinto beans', aisle: 'Canned & Jarred', unit: 'can', pack: 1, label: '15 oz can', price: 0.99, life: 'months' },
+  greenchiles:  { name: 'Diced green chiles', aisle: 'Canned & Jarred', unit: 'can', pack: 1, label: '4 oz can', price: 1.19, life: 'months' },
+  enchiladasauce:{ name: 'Red enchilada sauce', aisle: 'Canned & Jarred', unit: 'cup', pack: 1.25, label: '10 oz can', price: 1.79, life: 'months' },
+  alfredo:      { name: 'Alfredo sauce', aisle: 'Canned & Jarred', unit: 'oz', pack: 15, label: '15 oz jar', price: 2.79, life: 'months', flags: 'd' },
+  beefbroth:    { name: 'Beef broth', aisle: 'Canned & Jarred', unit: 'cup', pack: 4, label: '32 oz carton', price: 2.29, life: 'months', flags: 'mb' },
   refried:      { name: 'Refried beans', aisle: 'Canned & Jarred', unit: 'can', pack: 1, label: '16 oz can', price: 1.49, life: 'months' },
   chickenbroth: { name: 'Chicken broth', aisle: 'Canned & Jarred', unit: 'cup', pack: 4, label: '32 oz carton', price: 2.29, life: 'months', flags: 'm' },
   vegbroth:     { name: 'Vegetable broth', aisle: 'Canned & Jarred', unit: 'cup', pack: 4, label: '32 oz carton', price: 2.29, life: 'months' },
   coconutmilk:  { name: 'Coconut milk', aisle: 'Canned & Jarred', unit: 'can', pack: 1, label: '13.5 oz can', price: 1.99, life: 'months' },
+  pickledjalapenos:{ name: 'Pickled jalapeños', aisle: 'Canned & Jarred', unit: 'tbsp', pack: 24, label: '12 oz jar', price: 1.79, life: 'months' },
+  tacosauce:    { name: 'Taco sauce', aisle: 'Canned & Jarred', unit: 'tbsp', pack: 16, label: '8 oz bottle', price: 1.49, life: 'months' },
   salsa:        { name: 'Salsa', aisle: 'Canned & Jarred', unit: 'cup', pack: 2, label: '16 oz jar', price: 2.49, life: 'months' },
   peanutbutter: { name: 'Peanut butter', aisle: 'Canned & Jarred', unit: 'tbsp', pack: 28, label: '16 oz jar', price: 2.49, life: 'months', flags: 'n' },
   pesto:        { name: 'Basil pesto', aisle: 'Canned & Jarred', unit: 'tbsp', pack: 12, label: '6 oz jar', price: 2.99, life: 'weeks', flags: 'dn' },
@@ -89,6 +103,10 @@ var INGREDIENTS = {
   eggnoodles:   { name: 'Egg noodles', aisle: 'Pasta, Rice & Grains', unit: 'oz', pack: 12, label: '12 oz bag', price: 1.99, life: 'months', flags: 'ge' },
   ramen:        { name: 'Instant ramen', aisle: 'Pasta, Rice & Grains', unit: 'each', pack: 6, label: '6 pack', price: 1.99, life: 'months', flags: 'g' },
   lentils:      { name: 'Dry lentils', aisle: 'Pasta, Rice & Grains', unit: 'cup', pack: 2.25, label: '1 lb bag', price: 1.79, life: 'months' },
+  gnocchi:      { name: 'Potato gnocchi', aisle: 'Pasta, Rice & Grains', unit: 'oz', pack: 16, label: '16 oz pack', price: 2.49, life: 'months', flags: 'g' },
+  proteinpasta: { name: 'Protein pasta (e.g. Protein+)', aisle: 'Pasta, Rice & Grains', unit: 'oz', pack: 14.5, label: '14.5 oz box', price: 2.79, life: 'months', flags: 'g' },
+  nachochips:   { name: 'Nacho cheese tortilla chips (like Doritos)', aisle: 'Pasta, Rice & Grains', unit: 'oz', pack: 9.25, label: '9.25 oz bag', price: 3.49, life: 'months', flags: 'd' },
+  tortillachips:{ name: 'Tortilla chips', aisle: 'Pasta, Rice & Grains', unit: 'oz', pack: 13, label: '13 oz bag', price: 2.99, life: 'months' },
   breadcrumbs:  { name: 'Breadcrumbs', aisle: 'Pasta, Rice & Grains', unit: 'cup', pack: 3, label: '15 oz can', price: 2.29, life: 'months', flags: 'g' },
 
   // Baking

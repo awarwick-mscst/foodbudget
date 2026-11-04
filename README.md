@@ -18,6 +18,7 @@ No account, no server, no subscription. Everything is saved on the phone.
 - **Pantry**: tap "I have it" to take something off the list. After you shop, the rest of each pack moves to the pantry the next week, with use-by reminders and freeze tips.
 - **Thaw reminder**: the night before a dinner with meat or fish.
 - **Diabetes-friendly mode**: pick a carb target per dinner (30, 45 or 60 g). Plans stay near it, starchy sides get smaller portions when needed, sugary sauces are avoided, and every recipe shows carbs and fiber per serving. Carb counts are estimates.
+- **Nutrition**: every recipe shows calories, protein, fat, carbs, fiber, added sugar and sodium per serving, estimated from typical ingredient data. Filters for 30 g+ protein and under 500 calories.
 - **Likes and dislikes**: liked dinners come up more, disliked ones stop showing up.
 - **Your own recipes**: add family recipes; they get priced and planned like the rest.
 - **Share with your household**: copy a plan code and paste it on another phone.
@@ -68,7 +69,9 @@ After changing files, bump `CACHE` in `sw.js` (for example `foodbudge-v2`) so ph
 ## Files
 
 - `js/ingredients.js`: ingredient catalog with pack sizes and prices
-- `js/recipes.js`: the 50 built-in dinners
+- `js/recipes.js`, `js/recipes-more.js`: the 100 built-in dinners
+- `js/nutrition.js`: nutrition per ingredient
+- `js/stores.js`: stores and regional price adjustments
 - `js/planner.js`: budget math and plan picking
 - `js/app.js`: screens
 - `css/app.css`: styles

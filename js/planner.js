@@ -58,12 +58,13 @@ var Planner = (function () {
     return true;
   }
 
-  // ---------- carbs ----------
+  // ---------- nutrition ----------
   var carbCache = { target: null, map: {} };
 
-  function carbsPerUnit(state, id) {
+  // [calories, protein, fat, carbs, fiber, sodium] per recipe unit, or null if unknown.
+  function nutritionPerUnit(state, id) {
     var c = state.customIngredients && state.customIngredients[id];
-    if (c) return c.carbs != null ? [c.carbs, c.fiber || 0] : null;
+    if (c) return c.nutrition || null;
     return NUTRITION[id] || null;
   }
 
@@ -77,9 +78,9 @@ var Planner = (function () {
     if (hit) return hit.ing;
     var starch = 0, rest = 0;
     r.ing.forEach(function (p) {
-      var n = carbsPerUnit(state, p[0]);
+      var n = nutritionPerUnit(state, p[0]);
       if (!n) return;
-      if (STARCHES.indexOf(p[0]) >= 0) starch += n[0] * p[1]; else rest += n[0] * p[1];
+      if (STARCHES.indexOf(p[0]) >= 0) starch += n[3] * p[1]; else rest += n[3] * p[1];
     });
     var serves = r.serves || 4;
     var factor = 1;
@@ -93,22 +94,23 @@ var Planner = (function () {
     return out;
   }
 
-  // Per-serving carbs, fiber and added sugar in grams for this household's version of the recipe.
+  // Per-serving nutrition for this household's version of the recipe.
   function nutrition(state, r) {
     var list = ingredientsFor(state, r);
-    var carbs = 0, fiber = 0, sugar = 0, known = true;
+    var t = [0, 0, 0, 0, 0, 0], sugar = 0, known = true;
     list.forEach(function (p) {
-      var n = carbsPerUnit(state, p[0]);
+      var n = nutritionPerUnit(state, p[0]);
       if (!n) { known = false; return; }
-      carbs += n[0] * p[1];
-      fiber += n[1] * p[1];
-      if (ADDED_SUGAR.indexOf(p[0]) >= 0) sugar += n[0] * p[1];
+      for (var k = 0; k < 6; k++) t[k] += n[k] * p[1];
+      if (ADDED_SUGAR.indexOf(p[0]) >= 0) sugar += n[3] * p[1];
     });
     var serves = r.serves || 4;
-    var hit = carbCache.map[r.id];
+    var hit = state.settings.carbTarget ? carbCache.map[r.id] : null;
     var smaller = hit && hit.factor < 1 ? r.ing.filter(function (p) { return STARCHES.indexOf(p[0]) >= 0; }).map(function (p) { return p[0]; }) : [];
+    var per = function (x, step) { return Math.round(x / serves / step) * step; };
     return {
-      carbs: Math.round(carbs / serves), fiber: Math.round(fiber / serves), sugar: Math.round(sugar / serves),
+      calories: per(t[0], 10), protein: per(t[1], 1), fat: per(t[2], 1), carbs: per(t[3], 1),
+      fiber: per(t[4], 1), sodium: per(t[5], 10), sugar: per(sugar, 1),
       known: known, smaller: smaller
     };
   }
