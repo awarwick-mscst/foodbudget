@@ -5,7 +5,7 @@ const path = require('path');
 
 const root = path.join(__dirname, '..');
 const read = (p) => fs.readFileSync(path.join(root, p), 'utf8');
-const scripts = ['js/config.js', 'js/ingredients.js', 'js/prices-data.js', 'js/recipes.js', 'js/recipes-more.js', 'js/nutrition.js', 'js/stores.js', 'js/planner.js', 'js/kroger.js', 'js/app.js']
+const scripts = ['js/config.js', 'js/ingredients.js', 'js/prices-data.js', 'js/recipes.js', 'js/recipes-more.js', 'js/recipes-classic.js', 'js/nutrition.js', 'js/stores.js', 'js/planner.js', 'js/kroger.js', 'js/app.js']
   .map((p) => '<script>\n' + read(p).replace(/<\/script/gi, '<\\/script') + '\n</script>')
   .join('\n');
 

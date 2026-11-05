@@ -42,7 +42,7 @@
       settings: {
         people: 2, budget: 75, nights: [1, 1, 1, 1, 1, 0, 0], weeks: 1, diet: 'none', avoid: [], cuisines: [],
         maxMinutes: 0, priceLevel: 1, currency: '$', kids: false, onboarded: false,
-        country: 'US', postal: '', store: 'unsure', carbTarget: 0, goals: [], calTarget: 550, krogerStore: null
+        country: 'US', postal: '', store: 'unsure', carbTarget: 0, goals: [], calTarget: 550, krogerStore: null, style: 'classic'
       },
       pantry: { salt: { plenty: true }, pepper: { plenty: true }, vegoil: { plenty: true } },
       ratings: {}, priceOverrides: {}, history: [], customRecipes: [], customIngredients: {}, plan: null, live: null
@@ -449,8 +449,10 @@
     var filters = [['all', 'All'], ['liked', 'Liked'], ['cheap', 'Under ' + money(2)], ['quick', '25 min or less'], ['veg', 'Vegetarian'], ['carb', 'Lower carb'], ['heart', 'Heart healthy'], ['protein', '30 g+ protein'], ['light', 'Under 500 cal'], ['fiber', 'High fiber'], ['slow', 'Slow cooker'], ['mine', 'My recipes']];
     var list = Planner.allRecipes(state).map(function (r) { return { r: r, cost: Planner.servingCost(state, r) }; });
     var nut = function (r) { return Planner.nutrition(state, r); };
+    var hidden = 0;
     list = list.filter(function (x) {
       var r = x.r;
+      if (!ui.showAllStyles && !Planner.styleOK(state, r)) { hidden++; return false; }
       if (q && (r.name + ' ' + r.cuisine + ' ' + r.protein).toLowerCase().indexOf(q) < 0) return false;
       switch (ui.rFilter) {
         case 'liked': return state.ratings[r.id] === 1;
@@ -473,7 +475,8 @@
       '<div class="chips">' + filters.map(function (f) {
         return '<button class="chip" data-act="rfilter" data-v="' + f[0] + '" aria-pressed="' + (ui.rFilter === f[0]) + '">' + f[1] + '</button>';
       }).join('') + '</div>';
-    out += '<p class="small muted">' + list.length + ' dinners, cheapest first. Like the ones you enjoy and FoodBudge plans them more often. Dislike one and it stops showing up.</p>';
+    out += '<p class="small muted">' + list.length + ' dinners, cheapest first. Like the ones you enjoy and FoodBudge plans them more often. Dislike one and it stops showing up.' +
+      (hidden ? ' <button class="linkbtn" data-act="showallstyles">Show ' + hidden + ' more from other cuisines</button>' : ui.showAllStyles ? ' <button class="linkbtn" data-act="showallstyles">Hide dishes outside your style</button>' : '') + '</p>';
     out += '<div class="rlist" id="rlist">' + recipeCards(list) + '</div>';
     return out;
   }
@@ -569,7 +572,7 @@
       '<div class="field"><span class="label">Diet</span><div class="chips">' + chip('diet', 'none', 'Eat everything') + chip('diet', 'pescatarian', 'No meat, fish OK') + chip('diet', 'vegetarian', 'Vegetarian') + '</div></div>' +
       '<div class="field"><span class="label">Leave out</span><div class="chips">' + AVOIDS.map(function (a) {
         return '<button class="chip" data-act="toggleList" data-k="avoid" data-v="' + a[0] + '" aria-pressed="' + (s.avoid.indexOf(a[0]) >= 0) + '">' + a[1] + '</button>';
-      }).join('') + '</div></div>' + healthField() + carbField() +
+      }).join('') + '</div></div>' + healthField() + carbField() + styleField() +
       '<div class="field"><span class="label">Favorite kinds of food</span><div class="chips">' + CUISINES.map(function (c) {
         return '<button class="chip" data-act="toggleList" data-k="cuisines" data-v="' + c + '" aria-pressed="' + (s.cuisines.indexOf(c) >= 0) + '">' + c + '</button>';
       }).join('') + '</div><span class="hint">Favorites show up more often.</span></div>' +
@@ -617,6 +620,28 @@
   }
   function chip(k, v, label) {
     return '<button class="chip" data-act="set" data-k="' + k + '" data-v="' + esc(JSON.stringify(v)) + '" aria-pressed="' + (state.settings[k] === v) + '">' + label + '</button>';
+  }
+  var STYLES = [
+    ['classic', 'Classic American home cooking', 'Meatloaf, tacos, spaghetti, pot roast, hotdish, burgers, chili. Nothing unusual.'],
+    ['mix', 'Mostly classic, some new things', 'Now and then a dish like curry, Korean beef or Greek wraps.'],
+    ['adventurous', 'Anything goes', 'Every recipe, including tofu and lentil dishes.']
+  ];
+  function styleField() {
+    var cur = state.settings.style || 'classic';
+    return '<div class="field"><span class="label">What kind of dinners?</span><div class="opts">' + STYLES.map(function (x) {
+      return '<button class="opt goal" data-act="set" data-k="style" data-v="' + esc(JSON.stringify(x[0])) + '" aria-pressed="' + (cur === x[0]) + '"><span><b>' + x[1] + '</b><small>' + x[2] + '</small></span></button>';
+    }).join('') + '</div></div>';
+  }
+  // After a style or diet change, swap out planned dinners that no longer fit.
+  function dropBlocked() {
+    if (!state.plan || state.plan.shopped) return 0;
+    var n = 0, t = today();
+    state.plan.days.forEach(function (d) {
+      var r = d.recipe && Planner.recipe(state, d.recipe);
+      if (d.status === 'cook' && r && d.date >= t && !Planner.allowed(state, r)) { d.recipe = null; n++; }
+    });
+    if (n) fillPlan(state.plan, true);
+    return n;
   }
   var GOALS = [
     ['heart', 'Lower cholesterol', 'Less saturated fat: lean beef, olive oil instead of butter, Greek yogurt instead of sour cream, less cheese.'],
@@ -720,8 +745,8 @@
           healthField() + carbField();
         break;
       case 'likes':
-        body = '<h1 class="wiz-title">What do you like to eat?</h1>' +
-          '<div class="field"><span class="label">Pick your favorites</span><div class="chips">' + CUISINES.map(function (c) {
+        body = '<h1 class="wiz-title">What do you like to eat?</h1>' + styleField() +
+          '<div class="field"><span class="label">Favorite kinds of food</span><div class="chips">' + CUISINES.map(function (c) {
             return '<button class="chip" data-act="toggleList" data-k="cuisines" data-v="' + c + '" aria-pressed="' + (s.cuisines.indexOf(c) >= 0) + '">' + c + '</button>';
           }).join('') + '</div><span class="hint">Favorites come up more often. Skip this if you like a bit of everything.</span></div>' +
           '<div class="field"><span class="label">Most time you want to spend cooking</span><div class="chips">' +
@@ -1092,7 +1117,9 @@
     set: function (el) {
       state.settings[el.dataset.k] = JSON.parse(el.dataset.v);
       if (el.dataset.k === 'budget') ui.budgetTouched = true;
+      var swapped = (el.dataset.k === 'style' || el.dataset.k === 'diet') && state.settings.onboarded ? dropBlocked() : 0;
       save(); render();
+      if (swapped) toast(swapped === 1 ? '1 dinner swapped to fit' : swapped + ' dinners swapped to fit');
     },
     toggleList: function (el) {
       var list = state.settings[el.dataset.k], v = el.dataset.v, at = list.indexOf(v);
@@ -1126,6 +1153,7 @@
       if (krogerOn() && !state.settings.krogerStore && state.settings.postal) findKroger(); else render();
     },
     findkroger: function () { findKroger(); },
+    showallstyles: function () { ui.showAllStyles = !ui.showAllStyles; render(); },
     pickkroger: function (el) {
       state.settings.krogerStore = { id: el.dataset.v, name: el.dataset.name };
       ui.krogerStores = null; save();
@@ -1274,6 +1302,7 @@
   if (typeof Kroger === 'undefined' || !Kroger.enabled()) state.live = null;
   updatePriceLevel(); // picks up this month's regional price changes
   if (!state.plan) state.plan = buildPlan(today());
+  else dropBlocked();
   prunePantry();
   save();
   render();

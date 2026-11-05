@@ -38,7 +38,13 @@ var Kroger = (function () {
     curry: 'curry powder', redpepperflakes: 'crushed red pepper', salmon: 'frozen salmon fillets',
     tilapia: 'frozen tilapia fillets', shrimp: 'frozen cooked shrimp', meatballs: 'frozen meatballs',
     frozenpeas: 'frozen peas', frozencorn: 'frozen corn', greenbeans: 'frozen green beans',
-    stirfryveg: 'frozen stir fry vegetables'
+    stirfryveg: 'frozen stir fry vegetables', chuckroast: 'boneless chuck roast', stewbeef: 'beef stew meat',
+    ham: 'diced ham', brats: 'bratwurst', breakfastsausage: 'pork sausage roll', pepperoni: 'sliced pepperoni',
+    biscuits: 'refrigerated biscuits', cheeseslices: 'american cheese singles', hotdogbuns: 'hot dog buns',
+    hoagies: 'hoagie rolls', creamofmushroom: 'cream of mushroom soup', creamofchicken: 'cream of chicken soup',
+    tomatosoup: 'tomato soup condensed', lasagna: 'lasagna noodles', ketchup: 'ketchup', mustard: 'yellow mustard',
+    ranchmix: 'ranch seasoning mix', gravymix: 'brown gravy mix', tatertots: 'frozen tater tots',
+    fries: 'frozen french fries', mixedveg: 'frozen mixed vegetables'
   };
 
   function base() {

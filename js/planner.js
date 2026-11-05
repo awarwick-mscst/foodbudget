@@ -84,7 +84,23 @@ var Planner = (function () {
     }
     if (s.maxMinutes && r.min > s.maxMinutes) return false;
     if (state.ratings && state.ratings[r.id] === -1) return false;
+    if (!styleOK(state, r)) return false;
     return meetsGoals(state, r);
+  }
+
+  // Dinner style: 'classic' (everyday American home cooking, the default), 'mix' (classic plus
+  // other dishes now and then) or 'adventurous' (everything). Tofu dinners need a reason:
+  // a vegetarian diet or "anything goes".
+  function usesTofu(r) {
+    for (var i = 0; i < r.ing.length; i++) if (r.ing[i][0] === 'tofu') return true;
+    return false;
+  }
+  function styleOK(state, r) {
+    if (r.custom) return true;
+    var s = state.settings, style = s.style || 'classic';
+    if (usesTofu(r)) return style === 'adventurous' || s.diet === 'vegetarian';
+    if (r.world) return style !== 'classic';
+    return true;
   }
 
   // ---------- nutrition & health goals ----------
@@ -480,7 +496,7 @@ var Planner = (function () {
   return {
     LIFE_DAYS: LIFE_DAYS,
     allRecipes: allRecipes, recipe: recipe, ing: ing, price: price, priceInfo: priceInfo,
-    allowed: allowed, isVegetarian: isVegetarian, flagsOf: flagsOf,
+    allowed: allowed, styleOK: styleOK, isVegetarian: isVegetarian, flagsOf: flagsOf,
     ingredientsFor: ingredientsFor, nutrition: nutrition, meetsGoals: meetsGoals, hasGoal: hasGoal, calTarget: calTarget,
     pantryQty: pantryQty, scaleFor: scaleFor,
     costOf: costOf, servingCost: servingCost, choose: choose,

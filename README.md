@@ -20,6 +20,7 @@ No account, no server, no subscription. Everything is saved on the phone.
 - **Diabetes-friendly mode**: pick a carb target per dinner (30, 45 or 60 g). Plans stay near it, starchy sides get smaller portions when needed, sugary sauces are avoided, and every recipe shows carbs and fiber per serving. Carb counts are estimates.
 - **Nutrition**: every recipe shows calories, protein, fat, saturated fat, cholesterol, carbs, fiber, added sugar and sodium per serving, estimated from typical ingredient data.
 - **Health goals**: lower cholesterol, fewer calories, more protein, less sodium, more fiber. Each one makes healthier swaps in recipes (lean beef, olive oil, Greek yogurt, low-sodium broth, brown rice, whole wheat pasta), sets limits on what gets planned, and the week view shows average dinner nutrition against the goals.
+- **Dinner style**: "Classic American home cooking" (the default) plans everyday dinners like meatloaf, hotdish, pot roast, tacos, spaghetti and chili. "Mostly classic, some new things" adds a curry or Korean beef now and then, and "Anything goes" uses every recipe. Tofu dinners are only planned for vegetarians or with "Anything goes".
 - **Likes and dislikes**: liked dinners come up more, disliked ones stop showing up.
 - **Your own recipes**: add family recipes; they get priced and planned like the rest.
 - **Share with your household**: copy a plan code and paste it on another phone.
@@ -94,7 +95,7 @@ After changing files, bump `CACHE` in `sw.js` (for example `foodbudge-v2`) so ph
 - `js/kroger.js`: live Kroger prices in the app
 - `tools/update-prices.js`, `.github/workflows/update-prices.yml`: monthly price update
 - `worker/`: the optional Kroger price server
-- `js/recipes.js`, `js/recipes-more.js`: the 100 built-in dinners
+- `js/recipes.js`, `js/recipes-more.js`, `js/recipes-classic.js`: the 131 built-in dinners (the last file also marks which ones count as other cuisines)
 - `js/nutrition.js`: nutrition per ingredient
 - `js/stores.js`: stores and regional price adjustments
 - `js/planner.js`: budget math and plan picking

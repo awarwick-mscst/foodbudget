@@ -47,7 +47,9 @@ const MEASURED = {
   tomato: ['712311', 0.25],            // one roma, about 4 oz
   lettuce: ['FL2101', 1.25],           // romaine hearts 3 pack
   lemon: ['711412', 0.3],              // one lemon
-  lentils: ['714233', 1]               // 1 lb dry
+  lentils: ['714233', 1],              // 1 lb dry
+  chuckroast: ['703213', 3],           // ~3 lb boneless chuck roast
+  stewbeef: ['703432', 1]              // 1 lb
 };
 
 // Consumer Price Index groups (U.S. city average, not seasonally adjusted).
@@ -64,7 +66,8 @@ const AISLE_GROUP = {
 };
 const ID_GROUP = {
   lime: 'SEFK', lemon: 'SEFK', avocado: 'SEFK',
-  groundbeef: 'SEFC', leanbeef: 'SEFC', meatballs: 'SEFC',
+  groundbeef: 'SEFC', leanbeef: 'SEFC', meatballs: 'SEFC', chuckroast: 'SEFC', stewbeef: 'SEFC',
+  ham: 'SEFD', brats: 'SEFD', breakfastsausage: 'SEFD', pepperoni: 'SEFD', biscuits: 'SEFB',
   porkchop: 'SEFD', porkshoulder: 'SEFD', sausage: 'SEFD', italiansausage: 'SEFD', bacon: 'SEFD',
   salmon: 'SEFG', tilapia: 'SEFG', shrimp: 'SEFG', tuna: 'SEFG', eggs: 'SEFH',
   tofu: 'SEFT', pizzadough: 'SEFB', breadcrumbs: 'SEFB', nachochips: 'SEFT', tortillachips: 'SEFT',

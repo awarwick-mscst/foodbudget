@@ -40,6 +40,12 @@ var NUTRITION = {
   italiansausage: [1360, 64, 118, 4, 0, 3300, 42, 300],
   bacon: [43, 3, 3.3, 0.1, 0, 137, 1.1, 9],
   rotisserie: [265, 38, 12, 0, 0, 550, 3.4, 120],
+  chuckroast: [975, 84, 68, 0, 0, 295, 27, 318],
+  stewbeef: [726, 95, 36, 0, 0, 272, 14, 295],
+  ham: [32, 5, 1, 0.5, 0, 330, 0.3, 15],
+  brats: [280, 12, 25, 2, 0, 750, 9, 60],
+  breakfastsausage: [1450, 64, 130, 2, 0, 2900, 45, 320],
+  pepperoni: [140, 6, 13, 0.5, 0, 500, 5, 35],
   leanbeef: [520, 96, 18, 0, 0, 300, 8, 280],
 
   // Dairy & eggs
@@ -55,15 +61,22 @@ var NUTRITION = {
   feta: [400, 21, 32, 6, 0, 1700, 22, 135],
   tofu: [350, 40, 20, 8, 3, 40, 3, 0],
   creamcheese: [70, 2.6, 6, 1.2, 0, 100, 3.5, 20],
+  biscuits: [170, 3, 7, 24, 0.5, 530, 2.5, 0],
+  cheeseslices: [70, 3.5, 5, 1.5, 0, 280, 3, 15],
   pizzadough: [1200, 36, 16, 230, 8, 2200, 3, 0],
 
   // Bakery
   tortillas: [146, 3.9, 3.6, 25, 1.5, 330, 1.3, 0],
   corntortillas: [57, 1.5, 0.7, 11, 1.5, 10, 0.1, 0],
   bread: [75, 2.6, 1, 13, 1, 140, 0.2, 0],
+  hotdogbuns: [120, 4, 2, 22, 1, 210, 0.5, 0],
+  hoagies: [230, 8, 3, 43, 2, 420, 0.5, 0],
   buns: [140, 4.5, 2, 22, 1, 240, 0.5, 0],
 
   // Canned & jarred
+  creamofmushroom: [250, 2.5, 15, 22, 2.5, 2150, 5, 12],
+  creamofchicken: [300, 7.5, 20, 22, 0.5, 2175, 6, 25],
+  tomatosoup: [225, 5, 0, 50, 2.5, 1200, 0, 0],
   tuna: [116, 26, 1, 0, 0, 300, 0.3, 45],
   marinara: [15, 0.4, 0.5, 2.5, 0.5, 110, 0.1, 0],
   crushedtom: [260, 13, 1.5, 56, 14, 1200, 0.2, 0],
@@ -93,6 +106,7 @@ var NUTRITION = {
   spaghetti: [100, 3.6, 0.4, 21, 1, 1, 0.1, 0],
   penne: [100, 3.6, 0.4, 21, 1, 1, 0.1, 0],
   elbow: [100, 3.6, 0.4, 21, 1, 1, 0.1, 0],
+  lasagna: [100, 3.6, 0.4, 21, 1, 1, 0.1, 0],
   eggnoodles: [108, 4, 1.2, 20, 1, 6, 0.3, 15],
   ramen: [380, 8, 14, 52, 2, 1000, 6.5, 0],
   lentils: [680, 46, 2, 115, 21, 10, 0.3, 0],
@@ -150,10 +164,21 @@ var NUTRITION = {
 };
 
 // Starchy sides whose portion can shrink to bring a dinner's carbs down.
-var STARCHES = ['rice', 'spaghetti', 'penne', 'elbow', 'eggnoodles', 'ramen', 'tortillas', 'corntortillas', 'bread', 'buns', 'potato', 'sweetpotato', 'tortillachips', 'nachochips', 'gnocchi', 'proteinpasta', 'brownrice', 'wwpasta'];
+var NUTRITION_MORE = {
+  ketchup: [20, 0.2, 0, 5, 0, 160, 0, 0],
+  mustard: [10, 0.6, 0.5, 0.8, 0.5, 170, 0, 0],
+  ranchmix: [90, 2, 0.5, 18, 0, 4200, 0, 0],
+  gravymix: [80, 2, 1.5, 14, 0, 1700, 0.5, 0],
+  tatertots: [53, 0.7, 2.7, 7, 0.7, 140, 0.4, 0],
+  fries: [40, 0.7, 1.3, 6.7, 0.7, 95, 0.2, 0],
+  mixedveg: [70, 3, 0.3, 14, 4, 50, 0, 0]
+};
+Object.keys(NUTRITION_MORE).forEach(function (k) { NUTRITION[k] = NUTRITION_MORE[k]; });
+
+var STARCHES = ['rice', 'spaghetti', 'penne', 'elbow', 'eggnoodles', 'ramen', 'tortillas', 'corntortillas', 'bread', 'buns', 'potato', 'sweetpotato', 'tortillachips', 'nachochips', 'gnocchi', 'proteinpasta', 'brownrice', 'wwpasta', 'lasagna', 'tatertots', 'fries', 'hotdogbuns', 'hoagies', 'biscuits'];
 
 // Ingredients whose carbs are mostly added sugar.
-var ADDED_SUGAR = ['brownsugar', 'sugar', 'syrup', 'honey', 'bbqsauce'];
+var ADDED_SUGAR = ['brownsugar', 'sugar', 'syrup', 'honey', 'bbqsauce', 'ketchup'];
 
 // Ingredient changes made for each health goal. A list replaces the ingredient
 // (same amount times the factor given); a number scales the ingredient's amount.
