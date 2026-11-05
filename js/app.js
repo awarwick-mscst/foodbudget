@@ -7,7 +7,7 @@
   var STATUS = { cook: 'Cook', leftovers: 'Leftovers', out: 'Eating out', off: 'Night off' };
   var CUISINES = ['American', 'Mexican', 'Italian', 'Asian', 'Indian', 'Mediterranean'];
   var PROTEINS = ['Chicken', 'Beef', 'Pork', 'Turkey', 'Fish', 'Shrimp', 'Beans', 'Eggs', 'Cheese', 'Peanut', 'Tofu'];
-  var AVOIDS = [['pork', 'Pork'], ['beef', 'Beef'], ['fish', 'Fish'], ['shellfish', 'Shellfish'], ['dairy', 'Dairy'], ['gluten', 'Gluten'], ['eggs', 'Eggs'], ['nuts', 'Peanuts & nuts'], ['spicy', 'Spicy food']];
+  var AVOIDS = [['pork', 'Pork'], ['beef', 'Beef'], ['fish', 'Fish'], ['shellfish', 'Shellfish'], ['dairy', 'Dairy'], ['gluten', 'Gluten'], ['eggs', 'Eggs'], ['nuts', 'Peanuts & nuts'], ['mushroom', 'Mushrooms'], ['spicy', 'Spicy food']];
   var LIFE_TAG = { days: ['warn', 'Use within a week'], weeks: ['', 'Keeps a few weeks'], months: ['good', 'Lasts months'] };
 
   var I = {
@@ -570,9 +570,7 @@
 
     out += '<section class="card"><h2>What you like</h2>' +
       '<div class="field"><span class="label">Diet</span><div class="chips">' + chip('diet', 'none', 'Eat everything') + chip('diet', 'pescatarian', 'No meat, fish OK') + chip('diet', 'vegetarian', 'Vegetarian') + '</div></div>' +
-      '<div class="field"><span class="label">Leave out</span><div class="chips">' + AVOIDS.map(function (a) {
-        return '<button class="chip" data-act="toggleList" data-k="avoid" data-v="' + a[0] + '" aria-pressed="' + (s.avoid.indexOf(a[0]) >= 0) + '">' + a[1] + '</button>';
-      }).join('') + '</div></div>' + healthField() + carbField() + styleField() +
+      avoidField('Leave out') + healthField() + carbField() + styleField() +
       '<div class="field"><span class="label">Favorite kinds of food</span><div class="chips">' + CUISINES.map(function (c) {
         return '<button class="chip" data-act="toggleList" data-k="cuisines" data-v="' + c + '" aria-pressed="' + (s.cuisines.indexOf(c) >= 0) + '">' + c + '</button>';
       }).join('') + '</div><span class="hint">Favorites show up more often.</span></div>' +
@@ -620,6 +618,27 @@
   }
   function chip(k, v, label) {
     return '<button class="chip" data-act="set" data-k="' + k + '" data-v="' + esc(JSON.stringify(v)) + '" aria-pressed="' + (state.settings[k] === v) + '">' + label + '</button>';
+  }
+  // Leave-out choices: food groups, mushrooms, spicy food, plus anything the household types in.
+  function avoidField(label) {
+    var s = state.settings, presets = AVOIDS.map(function (a) { return a[0]; });
+    var custom = s.avoid.filter(function (a) { return presets.indexOf(a) < 0; });
+    var names = {};
+    allIngredientIds().forEach(function (id) {
+      var n = Planner.ing(state, id).name.replace(/\s*\(.*\)$/, '').toLowerCase();
+      names[n] = 1;
+    });
+    var out = '<div class="field"><span class="label">' + label + '</span><div class="chips">' + AVOIDS.map(function (a) {
+      return '<button class="chip" data-act="toggleList" data-k="avoid" data-v="' + a[0] + '" aria-pressed="' + (s.avoid.indexOf(a[0]) >= 0) + '">' + a[1] + '</button>';
+    }).join('') + custom.map(function (w) {
+      return '<button class="chip" data-act="toggleList" data-k="avoid" data-v="' + esc(w) + '" aria-pressed="true" aria-label="Stop leaving out ' + esc(w) + '">' + esc(w.charAt(0).toUpperCase() + w.slice(1)) + ' <span aria-hidden="true">✕</span></button>';
+    }).join('') + '</div>' +
+      '<form class="avoidadd" data-form="avoid"><label class="sr" for="avoid-in">Something else to leave out</label>' +
+      '<input class="input" id="avoid-in" list="avoid-names" maxlength="40" autocomplete="off" placeholder="Something else, like lima beans">' +
+      '<button class="btn sm">Add</button></form>' +
+      '<datalist id="avoid-names">' + Object.keys(names).sort().map(function (n) { return '<option value="' + esc(n) + '">'; }).join('') + '</datalist>' +
+      '<span class="hint">Type any food you don\'t like. Dinners with it in the recipe stop showing up.</span></div>';
+    return out;
   }
   var STYLES = [
     ['classic', 'Classic American home cooking', 'Meatloaf, tacos, spaghetti, pot roast, hotdish, burgers, chili. Nothing unusual.'],
@@ -735,9 +754,7 @@
       case 'diet':
         body = '<h1 class="wiz-title">Anything you don\'t eat?</h1>' +
           '<div class="field"><span class="label">Diet</span><div class="chips">' + chip('diet', 'none', 'I eat everything') + chip('diet', 'pescatarian', 'No meat, fish is OK') + chip('diet', 'vegetarian', 'Vegetarian') + '</div></div>' +
-          '<div class="field"><span class="label">Leave these out</span><div class="chips">' + AVOIDS.map(function (a) {
-            return '<button class="chip" data-act="toggleList" data-k="avoid" data-v="' + a[0] + '" aria-pressed="' + (s.avoid.indexOf(a[0]) >= 0) + '">' + a[1] + '</button>';
-          }).join('') + '</div></div>';
+          avoidField('Leave these out');
         break;
       case 'health':
         body = '<h1 class="wiz-title">Any health goals?</h1>' +
@@ -1124,7 +1141,9 @@
     toggleList: function (el) {
       var list = state.settings[el.dataset.k], v = el.dataset.v, at = list.indexOf(v);
       if (at >= 0) list.splice(at, 1); else list.push(v);
+      var swapped = el.dataset.k === 'avoid' && state.settings.onboarded ? dropBlocked() : 0;
       save(); render();
+      if (swapped) toast(swapped === 1 ? '1 dinner swapped out' : swapped + ' dinners swapped out');
     },
     resetprices: function () { state.priceOverrides = {}; save(); render(); toast('Back to estimated prices'); },
     wiznext: function () {
@@ -1267,6 +1286,17 @@
       var v = parseFloat(f.querySelector('input').value.replace(/[^0-9.]/g, ''));
       if (v >= 0) state.priceOverrides[f.dataset.id] = Math.round(v * 100) / 100;
       ui.priceEdit = null; save(); render(); toast('Price saved for future lists');
+    } else if (kind === 'avoid') {
+      var word = f.querySelector('input').value.trim().toLowerCase().replace(/\s+/g, ' ').slice(0, 40);
+      if (!word) return;
+      var av = state.settings.avoid;
+      if (av.indexOf(word) < 0) av.push(word);
+      var count = Planner.wordCount(state, word);
+      var gone = state.settings.onboarded ? dropBlocked() : 0;
+      save(); render();
+      var again = document.getElementById('avoid-in'); if (again) again.focus();
+      toast(count ? 'Leaving out ' + count + (count === 1 ? ' dinner' : ' dinners') + ' with ' + word + (gone ? ' (' + gone + ' swapped this week)' : '')
+        : 'No dinners use ' + word + ' right now. It stays on your list in case new ones do.');
     } else if (kind === 'padd') {
       var id = document.getElementById('padd-id').value;
       var q = parseFloat(document.getElementById('padd-q').value);

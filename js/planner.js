@@ -82,10 +82,49 @@ var Planner = (function () {
       if (a === 'spicy') { if (r.tags.indexOf('spicy') >= 0) return false; continue; }
       if (AVOID_FLAGS[a] && flags.indexOf(AVOID_FLAGS[a]) >= 0) return false;
     }
+    var words = avoidPatterns(s.avoid || []);
+    for (var w = 0; w < words.length; w++) if (hasWord(state, r, words[w])) return false;
     if (s.maxMinutes && r.min > s.maxMinutes) return false;
     if (state.ratings && state.ratings[r.id] === -1) return false;
     if (!styleOK(state, r)) return false;
     return meetsGoals(state, r);
+  }
+
+  // Leave-outs that aren't a food group (mushrooms, lima beans, olives...) match ingredient and
+  // recipe names, singular or plural: "mushrooms" catches "White mushrooms" and "Cream of mushroom soup".
+  function wordPattern(text) {
+    var w = String(text).toLowerCase().trim();
+    if (!w) return null;
+    var forms = [w, w.replace(/s$/, ''), w.replace(/es$/, '')].filter(Boolean).map(function (v) {
+      return v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    });
+    // Leaving out olives shouldn't leave out everything cooked in olive oil.
+    return { re: new RegExp('\\b(?:' + forms.join('|') + ')(?:e?s)?\\b', 'i'), oil: /\boil\b/.test(w) };
+  }
+  var avoidCache = { key: null, list: [] };
+  function avoidPatterns(avoid) {
+    var key = avoid.join('|');
+    if (avoidCache.key !== key) {
+      avoidCache = {
+        key: key,
+        list: avoid.filter(function (a) { return a !== 'spicy' && !AVOID_FLAGS[a]; }).map(wordPattern).filter(Boolean)
+      };
+    }
+    return avoidCache.list;
+  }
+  function hasWord(state, r, p) {
+    if (p.re.test(r.name)) return true;
+    for (var i = 0; i < r.ing.length; i++) {
+      var g = ing(state, r.ing[i][0]);
+      if (!g || (!p.oil && /\boil\b/i.test(g.name))) continue;
+      if (p.re.test(g.name)) return true;
+    }
+    return false;
+  }
+  // How many dinners mention a word, for "No dinners use lima beans right now".
+  function wordCount(state, text) {
+    var p = wordPattern(text);
+    return p ? allRecipes(state).filter(function (r) { return hasWord(state, r, p); }).length : 0;
   }
 
   // Dinner style: 'classic' (everyday American home cooking, the default), 'mix' (classic plus
@@ -496,7 +535,7 @@ var Planner = (function () {
   return {
     LIFE_DAYS: LIFE_DAYS,
     allRecipes: allRecipes, recipe: recipe, ing: ing, price: price, priceInfo: priceInfo,
-    allowed: allowed, styleOK: styleOK, isVegetarian: isVegetarian, flagsOf: flagsOf,
+    allowed: allowed, styleOK: styleOK, wordCount: wordCount, isVegetarian: isVegetarian, flagsOf: flagsOf,
     ingredientsFor: ingredientsFor, nutrition: nutrition, meetsGoals: meetsGoals, hasGoal: hasGoal, calTarget: calTarget,
     pantryQty: pantryQty, scaleFor: scaleFor,
     costOf: costOf, servingCost: servingCost, choose: choose,

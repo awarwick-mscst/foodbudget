@@ -21,6 +21,7 @@ No account, no server, no subscription. Everything is saved on the phone.
 - **Nutrition**: every recipe shows calories, protein, fat, saturated fat, cholesterol, carbs, fiber, added sugar and sodium per serving, estimated from typical ingredient data.
 - **Health goals**: lower cholesterol, fewer calories, more protein, less sodium, more fiber. Each one makes healthier swaps in recipes (lean beef, olive oil, Greek yogurt, low-sodium broth, brown rice, whole wheat pasta), sets limits on what gets planned, and the week view shows average dinner nutrition against the goals.
 - **Dinner style**: "Classic American home cooking" (the default) plans everyday dinners like meatloaf, hotdish, pot roast, tacos, spaghetti and chili. "Mostly classic, some new things" adds a curry or Korean beef now and then, and "Anything goes" uses every recipe. Tofu dinners are only planned for vegetarians or with "Anything goes".
+- **Leave out**: food groups (pork, beef, dairy, gluten...), mushrooms and spicy food, plus anything you type in, like lima beans or olives. Dinners with it in the recipe stop showing up.
 - **Likes and dislikes**: liked dinners come up more, disliked ones stop showing up.
 - **Your own recipes**: add family recipes; they get priced and planned like the rest.
 - **Share with your household**: copy a plan code and paste it on another phone.

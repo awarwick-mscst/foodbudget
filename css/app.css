@@ -299,6 +299,8 @@ textarea.input { min-height: 120px; resize: vertical; }
 .stepper.big button { width: 52px; height: 52px; font-size: 1.5rem; }
 .stepper.big output, .stepper.big input { font-size: 1.8rem; width: 96px; }
 .opts { display: grid; gap: 8px; }
+.avoidadd { display: flex; gap: 8px; margin-top: 10px; }
+.avoidadd .input { flex: 1; min-width: 0; }
 .opt {
   display: flex; justify-content: space-between; align-items: center; gap: 12px; text-align: left; width: 100%;
   background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 13px 14px; font-weight: 700; min-height: 52px;

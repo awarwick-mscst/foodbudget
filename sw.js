@@ -1,5 +1,5 @@
 // Offline support: cache the app shell, serve it cache-first, refresh in the background.
-var CACHE = 'foodbudge-v7';
+var CACHE = 'foodbudge-v8';
 var SHELL = [
   './', 'index.html', 'manifest.webmanifest', 'css/app.css',
   'js/config.js', 'js/ingredients.js', 'js/prices-data.js', 'js/recipes.js', 'js/recipes-more.js', 'js/recipes-classic.js', 'js/nutrition.js',
