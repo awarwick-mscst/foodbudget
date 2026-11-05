@@ -51,68 +51,147 @@ var Planner = (function () {
     }
     if (s.maxMinutes && r.min > s.maxMinutes) return false;
     if (state.ratings && state.ratings[r.id] === -1) return false;
-    if (s.carbTarget) {
-      var n = nutrition(state, r);
-      if (n.known && (n.carbs > s.carbTarget + 5 || n.sugar > 12)) return false;
-    }
-    return true;
+    return meetsGoals(state, r);
   }
 
-  // ---------- nutrition ----------
-  var carbCache = { target: null, map: {} };
+  // ---------- nutrition & health goals ----------
+  var adjustCache = { key: null, map: {} };
 
-  // [calories, protein, fat, carbs, fiber, sodium] per recipe unit, or null if unknown.
+  // [calories, protein, fat, carbs, fiber, sodium, sat fat, cholesterol] per recipe unit, or null if unknown.
   function nutritionPerUnit(state, id) {
     var c = state.customIngredients && state.customIngredients[id];
     if (c) return c.nutrition || null;
     return NUTRITION[id] || null;
   }
 
-  // Recipe ingredients as cooked for this household's settings. With a carb target,
-  // starchy sides (rice, pasta, tortillas, bread, potatoes) shrink, down to half, to fit it.
-  function ingredientsFor(state, r) {
-    var target = state.settings.carbTarget || 0;
-    if (!target) return r.ing;
-    if (carbCache.target !== target) carbCache = { target: target, map: {} };
-    var hit = carbCache.map[r.id];
-    if (hit) return hit.ing;
-    var starch = 0, rest = 0;
+  function goals(state) { return state.settings.goals || []; }
+  function hasGoal(state, g) { return goals(state).indexOf(g) >= 0; }
+  function calTarget(state) { return hasGoal(state, 'calories') ? (state.settings.calTarget || 550) : 0; }
+
+  // The recipe as this household will cook it: health-goal swaps first (lean beef, olive oil,
+  // Greek yogurt, low-sodium broth, brown rice...), then smaller starchy sides, down to half,
+  // to fit a carb or calorie target.
+  function adjust(state, r) {
+    var s = state.settings;
+    var key = [s.carbTarget || 0, calTarget(state), goals(state).slice().sort().join(',')].join('|');
+    if (key === '0|0|') return { ing: r.ing, swapped: [], less: [], smaller: [] };
+    if (adjustCache.key !== key) adjustCache = { key: key, map: {} };
+    if (adjustCache.map[r.id]) return adjustCache.map[r.id];
+
+    var actions = {};
+    goals(state).forEach(function (g) {
+      var table = HEALTH_SWAPS[g] || {};
+      Object.keys(table).forEach(function (id) {
+        var v = table[id], a = actions[id];
+        if (Array.isArray(v)) { if (!a || a.type !== 'replace') actions[id] = { type: 'replace', to: v }; }
+        else if (!a) actions[id] = { type: 'scale', f: v };
+        else if (a.type === 'scale') a.f = Math.min(a.f, v);
+      });
+    });
+    var merged = {}, order = [], swapped = [], less = [];
+    var add = function (id, q) {
+      if (merged[id] == null) { merged[id] = 0; order.push(id); }
+      merged[id] += q;
+    };
     r.ing.forEach(function (p) {
-      var n = nutritionPerUnit(state, p[0]);
-      if (!n) return;
-      if (STARCHES.indexOf(p[0]) >= 0) starch += n[3] * p[1]; else rest += n[3] * p[1];
+      var a = actions[p[0]];
+      if (a && a.type === 'replace') {
+        a.to.forEach(function (t) { add(t[0], p[1] * t[1]); });
+        swapped.push([p[0], a.to.length > 1 ? 'homemade' : a.to[0][0]]);
+      } else if (a && a.type === 'scale') {
+        add(p[0], p[1] * a.f);
+        less.push(p[0]);
+      } else add(p[0], p[1]);
     });
+    var list = order.map(function (id) { return [id, Math.round(merged[id] * 100) / 100]; });
+
     var serves = r.serves || 4;
-    var factor = 1;
-    if (starch > 0 && (starch + rest) / serves > target) {
-      factor = Math.max(0.5, Math.min(1, (target * serves - rest) / starch));
+    var sum = function (idx, starchy) {
+      var t = 0;
+      list.forEach(function (p) {
+        var n = nutritionPerUnit(state, p[0]);
+        if (n && (STARCHES.indexOf(p[0]) >= 0) === starchy) t += n[idx] * p[1];
+      });
+      return t;
+    };
+    var fit = function (idx, target, floor) {
+      if (!target) return 1;
+      var starch = sum(idx, true), rest = sum(idx, false);
+      if (!starch || (starch + rest) / serves <= target) return 1;
+      return Math.max(floor, Math.min(1, (target * serves - rest) / starch));
+    };
+    var factor = Math.min(fit(3, s.carbTarget || 0, 0.5), fit(0, calTarget(state), 0.6));
+    var smaller = [];
+    if (factor < 1) {
+      list = list.map(function (p) {
+        if (STARCHES.indexOf(p[0]) < 0) return p;
+        smaller.push(p[0]);
+        return [p[0], Math.round(p[1] * factor * 100) / 100];
+      });
     }
-    var out = factor === 1 ? r.ing : r.ing.map(function (p) {
-      return STARCHES.indexOf(p[0]) >= 0 ? [p[0], Math.round(p[1] * factor * 100) / 100] : p;
-    });
-    carbCache.map[r.id] = { ing: out, factor: factor };
+    var out = { ing: list, swapped: swapped, less: less, smaller: smaller };
+    adjustCache.map[r.id] = out;
     return out;
   }
 
+  function ingredientsFor(state, r) { return adjust(state, r).ing; }
+
   // Per-serving nutrition for this household's version of the recipe.
   function nutrition(state, r) {
-    var list = ingredientsFor(state, r);
-    var t = [0, 0, 0, 0, 0, 0], sugar = 0, known = true;
-    list.forEach(function (p) {
+    var a = adjust(state, r);
+    var t = [0, 0, 0, 0, 0, 0, 0, 0], sugar = 0, known = true;
+    a.ing.forEach(function (p) {
       var n = nutritionPerUnit(state, p[0]);
       if (!n) { known = false; return; }
-      for (var k = 0; k < 6; k++) t[k] += n[k] * p[1];
+      for (var k = 0; k < 8; k++) t[k] += (n[k] || 0) * p[1];
       if (ADDED_SUGAR.indexOf(p[0]) >= 0) sugar += n[3] * p[1];
     });
     var serves = r.serves || 4;
-    var hit = state.settings.carbTarget ? carbCache.map[r.id] : null;
-    var smaller = hit && hit.factor < 1 ? r.ing.filter(function (p) { return STARCHES.indexOf(p[0]) >= 0; }).map(function (p) { return p[0]; }) : [];
     var per = function (x, step) { return Math.round(x / serves / step) * step; };
     return {
       calories: per(t[0], 10), protein: per(t[1], 1), fat: per(t[2], 1), carbs: per(t[3], 1),
-      fiber: per(t[4], 1), sodium: per(t[5], 10), sugar: per(sugar, 1),
-      known: known, smaller: smaller
+      fiber: per(t[4], 1), sodium: per(t[5], 10), satfat: per(t[6], 1), cholesterol: per(t[7], 5),
+      sugar: per(sugar, 1), known: known, swapped: a.swapped, less: a.less, smaller: a.smaller
     };
+  }
+
+  // Limits a dinner must meet for the household's goals (after swaps and portions).
+  function meetsGoals(state, r) {
+    var s = state.settings;
+    var n = nutrition(state, r);
+    if (!n.known) return true;
+    if (s.carbTarget && (n.carbs > s.carbTarget + 5 || n.sugar > 12)) return false;
+    if (hasGoal(state, 'heart') && n.satfat > 10) return false;
+    if (hasGoal(state, 'calories') && n.calories > calTarget(state) + 100) return false;
+    if (hasGoal(state, 'sodium') && n.sodium > 1400) return false;
+    if (hasGoal(state, 'protein') && n.protein < 20) return false;
+    return true;
+  }
+
+  function healthScore(state, r) {
+    var s = state.settings;
+    if (!s.carbTarget && !goals(state).length) return 0;
+    var n = nutrition(state, r);
+    if (!n.known) return 0;
+    var score = 0;
+    var clamp = function (x, lo, hi) { return Math.max(lo, Math.min(hi, x)); };
+    if (s.carbTarget) {
+      if (n.fiber >= 7) score += 0.4;
+      if (n.sugar > 6) score -= 0.4;
+      if (n.smaller.length) score -= 0.15;
+      score += Math.max(0, (s.carbTarget - n.carbs) / s.carbTarget) * 0.5;
+    }
+    if (hasGoal(state, 'heart')) {
+      if (n.satfat <= 5) score += 0.4;
+      if (n.satfat > 8) score -= 0.4;
+      if (n.fiber >= 7) score += 0.2;
+    }
+    // Aim near the calorie target rather than as low as possible, so dinners stay filling.
+    if (hasGoal(state, 'calories')) score += clamp(0.45 - Math.abs(n.calories - calTarget(state)) / calTarget(state) * 1.5, -0.45, 0.45);
+    if (hasGoal(state, 'protein')) score += clamp((n.protein - 25) / 25, -0.5, 1) * 0.5;
+    if (hasGoal(state, 'sodium')) score += n.sodium <= 700 ? 0.4 : n.sodium > 1100 ? -0.4 : 0;
+    if (hasGoal(state, 'fiber')) score += Math.min(n.fiber, 15) / 15 * 0.6;
+    return score;
   }
 
   // Pantry amount on hand right now (Infinity for "always have").
@@ -169,13 +248,7 @@ var Planner = (function () {
     if (s.kids && r.tags.indexOf('kid') >= 0) score += 0.4;
     if (recent && recent[r.id]) score -= 0.9;
     if (r.custom) score += 0.5;
-    if (s.carbTarget) {
-      var n = nutrition(state, r);
-      if (n.fiber >= 7) score += 0.4;
-      score += Math.max(0, (s.carbTarget - n.carbs) / s.carbTarget) * 0.5;
-      if (n.sugar > 6) score -= 0.4;
-      if (n.smaller.length) score -= 0.15;
-    }
+    score += healthScore(state, r);
     return score;
   }
 
@@ -375,7 +448,7 @@ var Planner = (function () {
     LIFE_DAYS: LIFE_DAYS,
     allRecipes: allRecipes, recipe: recipe, ing: ing, price: price,
     allowed: allowed, isVegetarian: isVegetarian, flagsOf: flagsOf,
-    ingredientsFor: ingredientsFor, nutrition: nutrition,
+    ingredientsFor: ingredientsFor, nutrition: nutrition, meetsGoals: meetsGoals, hasGoal: hasGoal, calTarget: calTarget,
     pantryQty: pantryQty, scaleFor: scaleFor,
     costOf: costOf, servingCost: servingCost, choose: choose,
     planRecipes: planRecipes, planCost: planCost, swapOptions: swapOptions,

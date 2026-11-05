@@ -42,7 +42,7 @@
       settings: {
         people: 2, budget: 75, nights: [1, 1, 1, 1, 1, 0, 0], weeks: 1, diet: 'none', avoid: [], cuisines: [],
         maxMinutes: 0, priceLevel: 1, currency: '$', kids: false, onboarded: false,
-        country: 'US', postal: '', store: 'unsure', carbTarget: 0
+        country: 'US', postal: '', store: 'unsure', carbTarget: 0, goals: [], calTarget: 550
       },
       pantry: { salt: { plenty: true }, pepper: { plenty: true }, vegoil: { plenty: true } },
       ratings: {}, priceOverrides: {}, history: [], customRecipes: [], customIngredients: {}, plan: null
@@ -263,6 +263,7 @@
         '<div class="row"><button class="btn primary sm" data-act="nextweek">Plan the next week</button></div></div>';
     }
     out += receipt(cost);
+    out += healthSummary();
 
     // Tonight + thaw reminder
     var tonight = plan.days.filter(function (d) { return d.date === t; })[0];
@@ -375,7 +376,7 @@
   // ---------- Recipes ----------
   function renderRecipes() {
     var q = ui.rQuery.trim().toLowerCase();
-    var filters = [['all', 'All'], ['liked', 'Liked'], ['cheap', 'Under ' + money(2)], ['quick', '25 min or less'], ['veg', 'Vegetarian'], ['carb', 'Lower carb'], ['protein', '30 g+ protein'], ['light', 'Under 500 cal'], ['slow', 'Slow cooker'], ['mine', 'My recipes']];
+    var filters = [['all', 'All'], ['liked', 'Liked'], ['cheap', 'Under ' + money(2)], ['quick', '25 min or less'], ['veg', 'Vegetarian'], ['carb', 'Lower carb'], ['heart', 'Heart healthy'], ['protein', '30 g+ protein'], ['light', 'Under 500 cal'], ['fiber', 'High fiber'], ['slow', 'Slow cooker'], ['mine', 'My recipes']];
     var list = Planner.allRecipes(state).map(function (r) { return { r: r, cost: Planner.servingCost(state, r) }; });
     var nut = function (r) { return Planner.nutrition(state, r); };
     list = list.filter(function (x) {
@@ -389,6 +390,8 @@
         case 'slow': return r.tags.indexOf('slowcooker') >= 0;
         case 'carb': return nut(r).known && nut(r).carbs <= (state.settings.carbTarget || 45);
         case 'protein': return nut(r).known && nut(r).protein >= 30;
+        case 'heart': return nut(r).known && nut(r).satfat <= 5 && nut(r).sodium <= 900;
+        case 'fiber': return nut(r).known && nut(r).fiber >= 8;
         case 'light': return nut(r).known && nut(r).calories < 500;
         case 'mine': return !!r.custom;
       }
@@ -496,7 +499,7 @@
       '<div class="field"><span class="label">Diet</span><div class="chips">' + chip('diet', 'none', 'Eat everything') + chip('diet', 'pescatarian', 'No meat, fish OK') + chip('diet', 'vegetarian', 'Vegetarian') + '</div></div>' +
       '<div class="field"><span class="label">Leave out</span><div class="chips">' + AVOIDS.map(function (a) {
         return '<button class="chip" data-act="toggleList" data-k="avoid" data-v="' + a[0] + '" aria-pressed="' + (s.avoid.indexOf(a[0]) >= 0) + '">' + a[1] + '</button>';
-      }).join('') + '</div></div>' + carbField() +
+      }).join('') + '</div></div>' + healthField() + carbField() +
       '<div class="field"><span class="label">Favorite kinds of food</span><div class="chips">' + CUISINES.map(function (c) {
         return '<button class="chip" data-act="toggleList" data-k="cuisines" data-v="' + c + '" aria-pressed="' + (s.cuisines.indexOf(c) >= 0) + '">' + c + '</button>';
       }).join('') + '</div><span class="hint">Favorites show up more often.</span></div>' +
@@ -545,6 +548,27 @@
   function chip(k, v, label) {
     return '<button class="chip" data-act="set" data-k="' + k + '" data-v="' + esc(JSON.stringify(v)) + '" aria-pressed="' + (state.settings[k] === v) + '">' + label + '</button>';
   }
+  var GOALS = [
+    ['heart', 'Lower cholesterol', 'Less saturated fat: lean beef, olive oil instead of butter, Greek yogurt instead of sour cream, less cheese.'],
+    ['calories', 'Fewer calories', 'Dinners near your calorie target, with lighter swaps and smaller starchy sides when needed.'],
+    ['protein', 'More protein', 'At least 20 g per dinner, and 30 g or more when possible.'],
+    ['sodium', 'Less sodium', 'Low-sodium broth and soy sauce, homemade taco seasoning, and saltier dinners left out.'],
+    ['fiber', 'More fiber', 'Brown rice and whole wheat pasta, and more beans and vegetables.']
+  ];
+  function healthField() {
+    var s = state.settings;
+    var on = s.goals || [];
+    var out = '<div class="field"><span class="label">Health goals</span><div class="opts">' + GOALS.map(function (g) {
+      return '<button class="opt goal" data-act="toggleList" data-k="goals" data-v="' + g[0] + '" aria-pressed="' + (on.indexOf(g[0]) >= 0) + '"><span><b>' + g[1] + '</b><small>' + g[2] + '</small></span></button>';
+    }).join('') + '</div></div>';
+    if (on.indexOf('calories') >= 0) {
+      out += '<div class="field"><span class="label">Calories per dinner</span><div class="chips">' +
+        chip('calTarget', 450, 'About 450') + chip('calTarget', 550, 'About 550') + chip('calTarget', 650, 'About 650') + '</div>' +
+        '<span class="hint">Dinner is often about a third of the day. 550 fits many adults trying to eat a bit less.</span></div>';
+    }
+    out += '<p class="small muted">These follow general healthy-eating guidelines. They aren\'t medical advice, so follow your doctor\'s plan if you have one.</p>';
+    return out;
+  }
   function carbField() {
     return '<div class="field"><span class="label">Managing diabetes or watching carbs?</span><div class="chips">' +
       chip('carbTarget', 0, 'No') + chip('carbTarget', 30, 'Yes, about 30 g per dinner') + chip('carbTarget', 45, 'Yes, about 45 g') + chip('carbTarget', 60, 'Yes, about 60 g') + '</div>' +
@@ -567,7 +591,7 @@
   }
 
   // ---------- first-run wizard ----------
-  var WIZ = ['welcome', 'people', 'location', 'store', 'budget', 'nights', 'diet', 'likes', 'staples'];
+  var WIZ = ['welcome', 'people', 'location', 'store', 'budget', 'nights', 'diet', 'health', 'likes', 'staples'];
   function renderWizard() {
     var s = state.settings;
     var step = Math.min(ui.wizStep || 0, WIZ.length - 1);
@@ -618,7 +642,12 @@
           '<div class="field"><span class="label">Diet</span><div class="chips">' + chip('diet', 'none', 'I eat everything') + chip('diet', 'pescatarian', 'No meat, fish is OK') + chip('diet', 'vegetarian', 'Vegetarian') + '</div></div>' +
           '<div class="field"><span class="label">Leave these out</span><div class="chips">' + AVOIDS.map(function (a) {
             return '<button class="chip" data-act="toggleList" data-k="avoid" data-v="' + a[0] + '" aria-pressed="' + (s.avoid.indexOf(a[0]) >= 0) + '">' + a[1] + '</button>';
-          }).join('') + '</div></div>' + carbField();
+          }).join('') + '</div></div>';
+        break;
+      case 'health':
+        body = '<h1 class="wiz-title">Any health goals?</h1>' +
+          '<p class="wiz-lead">Pick any that matter to you, or skip this. FoodBudge makes healthier swaps and picks dinners that fit.</p>' +
+          healthField() + carbField();
         break;
       case 'likes':
         body = '<h1 class="wiz-title">What do you like to eat?</h1>' +
@@ -723,19 +752,14 @@
         : '<div class="fact"><span>Calories</span><b>' + (n.known ? n.calories : '?') + '</b></div><div class="fact"><span>Protein</span><b>' + (n.known ? n.protein + ' g' : '?') + '</b></div>') +
       '</div>';
     if (r.note) out += '<p class="small muted">' + esc(r.note) + '</p>';
-    if (state.settings.carbTarget) {
-      var notes = [];
-      if (n.smaller.length) notes.push('Carb-smart portion: this uses less ' + n.smaller.map(function (id) { return Planner.ing(state, id).name.toLowerCase(); }).join(' and ') + ' than the original recipe to stay near ' + state.settings.carbTarget + ' g of carbs per serving.');
-      if (n.sugar > 0) notes.push('About ' + n.sugar + ' g of the carbs come from added sugar.');
-      if (!n.known) notes.push('Some ingredients have no carb data, so the count is incomplete.');
-      notes.push('Carb counts are estimates per serving. Check labels and follow your own care plan.');
-      out += '<div class="notice ice"><p class="small">' + notes.join(' ') + '</p></div>';
-    }
+    var notes = adjustNotes(n);
+    if (notes.length) out += '<div class="notice ice"><p class="small"><b>Made for your goals.</b> ' + notes.join(' ') + '</p></div>';
     var tags = r.tags.map(function (tg) {
       return { sheetpan: 'Sheet pan', slowcooker: 'Slow cooker', onepot: 'One pot', kid: 'Kid friendly', spicy: 'Spicy', freezer: 'Freezes well', lowcarb: 'Lower carb', mealprep: 'Good for meal prep' }[tg];
     }).filter(Boolean);
     if (Planner.isVegetarian(state, r)) tags.push('Vegetarian');
-    if (tags.length) out += '<div class="chips">' + tags.map(function (x) { return '<span class="tag">' + x + '</span>'; }).join('') + '</div>';
+    var badges = healthBadges(n);
+    if (tags.length || badges.length) out += '<div class="chips">' + badges.map(function (x) { return '<span class="tag good">' + x + '</span>'; }).join('') + tags.map(function (x) { return '<span class="tag">' + x + '</span>'; }).join('') + '</div>';
     out += '<div class="row">' +
       '<button class="btn sm' + (rating === 1 ? ' primary' : '') + '" data-act="rate" data-id="' + esc(r.id) + '" data-v="1" aria-pressed="' + (rating === 1) + '">' + I.up + (rating === 1 ? 'Liked' : 'Like') + '</button>' +
       '<button class="btn sm' + (rating === -1 ? ' danger' : '') + '" data-act="rate" data-id="' + esc(r.id) + '" data-v="-1" aria-pressed="' + (rating === -1) + '">' + I.down + (rating === -1 ? 'Hidden from plans' : 'Not for me') + '</button></div>';
@@ -763,12 +787,71 @@
     if (r.custom) out += '<button class="btn danger sm" data-act="delrecipe" data-id="' + esc(r.id) + '">Delete this recipe</button>';
     return out;
   }
+  function ingName(id) {
+    var n = Planner.ing(state, id).name.replace(/ \(.*\)$/, '');
+    return n.charAt(0).toLowerCase() + n.slice(1);
+  }
+  function list(words) {
+    return words.length < 2 ? words.join('') : words.slice(0, -1).join(', ') + ' and ' + words[words.length - 1];
+  }
+  // Plain-language list of what FoodBudge changed in a recipe for this household's goals.
+  function adjustNotes(n) {
+    var s = state.settings, notes = [];
+    if (n.swapped.length) {
+      notes.push('Swaps: ' + n.swapped.map(function (x) {
+        return (x[1] === 'homemade' ? 'homemade ' + ingName(x[0]) + ' (chili powder, cumin, garlic powder and paprika)' : ingName(x[1])) + ' instead of ' + ingName(x[0]);
+      }).join('; ') + '.');
+    }
+    if (n.less.length) notes.push('Uses less ' + list(n.less.map(ingName)) + '.');
+    if (n.smaller.length) {
+      var why = s.carbTarget && Planner.calTarget(state) ? 'carb and calorie targets' : s.carbTarget ? 'carb target (' + s.carbTarget + ' g)' : 'calorie target (' + Planner.calTarget(state) + ')';
+      notes.push('Smaller portion of ' + list(n.smaller.map(ingName)) + ' to fit your ' + why + '.');
+    }
+    if (s.carbTarget && n.sugar > 0) notes.push('About ' + n.sugar + ' g of the carbs come from added sugar.');
+    if (notes.length || s.carbTarget) notes.push('Amounts and nutrition below include these changes. Numbers are estimates; follow your own care plan.');
+    return notes;
+  }
+  function healthBadges(n) {
+    if (!n.known) return [];
+    var b = [];
+    if (n.satfat <= 5 && n.sodium <= 900) b.push('Heart healthy');
+    if (n.protein >= 30) b.push('High protein');
+    if (n.calories <= 500) b.push('Lower calorie');
+    if (n.fiber >= 8) b.push('High fiber');
+    if (n.sodium <= 700) b.push('Lower sodium');
+    return b;
+  }
+  // Average nutrition across this week's dinners, checked against the household's goals.
+  function healthSummary() {
+    var s = state.settings, g = s.goals || [];
+    if (!g.length && !s.carbTarget) return '';
+    var rs = Planner.planRecipes(state, state.plan).map(function (r) { return Planner.nutrition(state, r); }).filter(function (n) { return n.known; });
+    if (!rs.length) return '';
+    var avg = function (k) { return Math.round(rs.reduce(function (t, n) { return t + n[k]; }, 0) / rs.length); };
+    var items = [];
+    var item = function (label, value, unit, status) { items.push('<div class="hs ' + status + '"><b>' + value + unit + '</b><span>' + label + '</span></div>'); };
+    var cal = avg('calories'), ct = Planner.calTarget(state);
+    item('Calories', cal, '', ct ? (Math.abs(cal - ct) <= 100 ? 'good' : 'warn') : '');
+    var pr = avg('protein');
+    item('Protein', pr, ' g', g.indexOf('protein') >= 0 ? (pr >= 30 ? 'good' : 'warn') : '');
+    if (s.carbTarget) { var c = avg('carbs'); item('Carbs', c, ' g', c <= s.carbTarget + 5 ? 'good' : 'warn'); }
+    var sf = avg('satfat');
+    item('Sat fat', sf, ' g', g.indexOf('heart') >= 0 ? (sf <= 5 ? 'good' : 'warn') : '');
+    var na = avg('sodium');
+    item('Sodium', na, ' mg', g.indexOf('sodium') >= 0 || g.indexOf('heart') >= 0 ? (na <= 800 ? 'good' : 'warn') : '');
+    var fb = avg('fiber');
+    item('Fiber', fb, ' g', g.indexOf('fiber') >= 0 || g.indexOf('heart') >= 0 ? (fb >= 8 ? 'good' : 'warn') : '');
+    return '<section class="card health"><div class="row between"><h3>Dinner nutrition this week</h3><span class="small muted">average per serving</span></div>' +
+      '<div class="hsgrid">' + items.join('') + '</div></section>';
+  }
   function nutritionPanel(n) {
     if (!n.known) return '<p class="small muted">Nutrition isn\'t available for recipes with ingredients that have no nutrition data.</p>';
     var rows = [
       ['Calories', n.calories, ''],
       ['Protein', n.protein, ' g'],
       ['Fat', n.fat, ' g'],
+      ['Saturated fat', n.satfat, ' g', true],
+      ['Cholesterol', n.cholesterol, ' mg'],
       ['Carbs', n.carbs, ' g'],
       ['Fiber', n.fiber, ' g', true],
       ['Added sugar', n.sugar, ' g', true],

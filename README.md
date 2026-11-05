@@ -18,7 +18,8 @@ No account, no server, no subscription. Everything is saved on the phone.
 - **Pantry**: tap "I have it" to take something off the list. After you shop, the rest of each pack moves to the pantry the next week, with use-by reminders and freeze tips.
 - **Thaw reminder**: the night before a dinner with meat or fish.
 - **Diabetes-friendly mode**: pick a carb target per dinner (30, 45 or 60 g). Plans stay near it, starchy sides get smaller portions when needed, sugary sauces are avoided, and every recipe shows carbs and fiber per serving. Carb counts are estimates.
-- **Nutrition**: every recipe shows calories, protein, fat, carbs, fiber, added sugar and sodium per serving, estimated from typical ingredient data. Filters for 30 g+ protein and under 500 calories.
+- **Nutrition**: every recipe shows calories, protein, fat, saturated fat, cholesterol, carbs, fiber, added sugar and sodium per serving, estimated from typical ingredient data.
+- **Health goals**: lower cholesterol, fewer calories, more protein, less sodium, more fiber. Each one makes healthier swaps in recipes (lean beef, olive oil, Greek yogurt, low-sodium broth, brown rice, whole wheat pasta), sets limits on what gets planned, and the week view shows average dinner nutrition against the goals.
 - **Likes and dislikes**: liked dinners come up more, disliked ones stop showing up.
 - **Your own recipes**: add family recipes; they get priced and planned like the rest.
 - **Share with your household**: copy a plan code and paste it on another phone.
