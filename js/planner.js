@@ -18,12 +18,45 @@ var Planner = (function () {
     return (state.customIngredients && state.customIngredients[id]) || INGREDIENTS[id] || null;
   }
 
+  // Live store prices (Kroger) apply only while that store is still the one picked in Setup.
+  function live(state, id) {
+    var s = state.settings, l = state.live;
+    if (!l || !l.items || s.store !== 'kroger' || !s.krogerStore || l.loc !== s.krogerStore.id) return null;
+    return l.items[id] || null;
+  }
+
+  // Monthly government data is a month or two behind; carry it forward with recent food inflation.
+  var projection = (function () {
+    if (typeof PRICE_DATA === 'undefined') return 1;
+    var parts = PRICE_DATA.month.split('-'), now = new Date();
+    var months = (now.getFullYear() - parts[0]) * 12 + (now.getMonth() + 1 - parts[1]);
+    return Math.pow(1 + PRICE_DATA.yearlyChange, Math.max(0, Math.min(6, months)) / 12);
+  })();
+
+  // Price of one pack at a typical supermarket, before store and area adjustments.
+  function basePrice(state, id) {
+    var custom = state.customIngredients && state.customIngredients[id];
+    if (!custom && typeof PRICE_DATA !== 'undefined' && PRICE_DATA.items[id]) return PRICE_DATA.items[id][0] * projection;
+    var i = ing(state, id);
+    return i ? i.price : 0;
+  }
+
   function price(state, id) {
     var o = state.priceOverrides && state.priceOverrides[id];
     if (o != null) return o;
-    var i = ing(state, id);
-    if (!i) return 0;
-    return Math.round(i.price * (state.settings.priceLevel || 1) * 100) / 100;
+    var l = live(state, id);
+    if (l) return l.s || l.p;
+    if (!ing(state, id)) return 0;
+    return Math.round(basePrice(state, id) * (state.settings.priceLevel || 1) * 100) / 100;
+  }
+
+  // Where a price came from, for labels: 'mine', 'sale', 'live' or 'estimate', and the yearly change.
+  function priceInfo(state, id) {
+    if (state.priceOverrides && state.priceOverrides[id] != null) return { source: 'mine' };
+    var l = live(state, id);
+    if (l) return { source: l.s ? 'sale' : 'live', product: l.d, regular: l.p };
+    var d = typeof PRICE_DATA !== 'undefined' && !(state.customIngredients && state.customIngredients[id]) && PRICE_DATA.items[id];
+    return { source: 'estimate', change: d ? d[1] : 0 };
   }
 
   function flagsOf(state, r) {
@@ -446,7 +479,7 @@ var Planner = (function () {
 
   return {
     LIFE_DAYS: LIFE_DAYS,
-    allRecipes: allRecipes, recipe: recipe, ing: ing, price: price,
+    allRecipes: allRecipes, recipe: recipe, ing: ing, price: price, priceInfo: priceInfo,
     allowed: allowed, isVegetarian: isVegetarian, flagsOf: flagsOf,
     ingredientsFor: ingredientsFor, nutrition: nutrition, meetsGoals: meetsGoals, hasGoal: hasGoal, calTarget: calTarget,
     pantryQty: pantryQty, scaleFor: scaleFor,

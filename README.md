@@ -29,9 +29,28 @@ The first time someone opens the app, a setup wizard asks how many people they f
 they live (ZIP or postal code), which store they use, their budget, which nights they cook,
 what they don't eat and what they like.
 
-Prices are estimates of regular US store-brand prices (late 2026), adjusted for the chosen
-store and area (Canada is priced in Canadian dollars). They aren't live store prices, so
-people can also set exact prices on the grocery list.
+## Where prices come from
+
+1. **U.S. government price data, updated every month.** `tools/update-prices.js` downloads the
+   U.S. Bureau of Labor Statistics' latest average grocery prices (eggs, ground beef, chicken,
+   milk, butter, cheese, bread, pasta, rice, flour, sugar and more) and food inflation for each
+   food group (fresh vegetables, beef, dairy, sauces...). It writes `js/prices-data.js`.
+   A GitHub Action (`.github/workflows/update-prices.yml`) runs it on the 16th and 26th of each
+   month and commits any changes, so the app keeps up with rising prices on its own.
+   No account or key is needed. You can also run it by hand: `node tools/update-prices.js`.
+2. **Adjusted for your store and area.** Each store has a price level (Aldi is about 16% below a
+   typical supermarket) and the ZIP code adds a regional adjustment. Canada uses the same data,
+   converted to Canadian dollars.
+3. **Live Kroger prices (optional).** For Kroger-family stores, a small free server can fetch
+   real shelf and sale prices for the store you pick. See [worker/README.md](worker/README.md).
+   It's off until you set `krogerProxy` in `js/config.js`.
+4. **Your own prices win.** Tap any price on the grocery list to set what your store charges.
+
+The grocery list marks items whose price went up or down 8% or more in a year, and items on sale.
+
+To run the price update from GitHub: open the repository's **Actions** tab, choose
+**Update prices**, then **Run workflow**. If Actions asks for permission to write, go to
+**Settings → Actions → General → Workflow permissions** and choose **Read and write permissions**.
 
 ## Try it on your computer
 
@@ -69,7 +88,12 @@ After changing files, bump `CACHE` in `sw.js` (for example `foodbudge-v2`) so ph
 
 ## Files
 
-- `js/ingredients.js`: ingredient catalog with pack sizes and prices
+- `js/ingredients.js`: ingredient catalog with pack sizes and starting prices
+- `js/prices-data.js`: this month's prices (generated, don't edit)
+- `js/config.js`: optional Kroger price server address
+- `js/kroger.js`: live Kroger prices in the app
+- `tools/update-prices.js`, `.github/workflows/update-prices.yml`: monthly price update
+- `worker/`: the optional Kroger price server
 - `js/recipes.js`, `js/recipes-more.js`: the 100 built-in dinners
 - `js/nutrition.js`: nutrition per ingredient
 - `js/stores.js`: stores and regional price adjustments

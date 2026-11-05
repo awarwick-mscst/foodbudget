@@ -50,14 +50,24 @@ var STORE_UNSURE = { id: 'unsure', name: "Not sure / somewhere else", level: 1.0
 // Canadian dollars per US dollar of grocery prices, before regional differences.
 var CAD_FACTOR = 1.32;
 
-// Rough cost-of-groceries adjustment by area.
+// Census region for a US ZIP code's first three digits: NE, MW (Midwest), S or W.
+function usRegion(zip3) {
+  var ranges = [[0, 196, 'NE'], [197, 429, 'S'], [430, 589, 'MW'], [590, 599, 'W'], [600, 693, 'MW'],
+    [700, 799, 'S'], [800, 884, 'W'], [885, 885, 'S'], [886, 999, 'W']];
+  for (var i = 0; i < ranges.length; i++) if (zip3 >= ranges[i][0] && zip3 <= ranges[i][1]) return ranges[i][2];
+  return '';
+}
+
+// Rough cost-of-groceries adjustment by area. For the US this also follows how each region's
+// food prices have moved recently (from the monthly government data in js/prices-data.js).
 function regionFactor(country, postal) {
   var p = String(postal || '').trim().toUpperCase();
   if (country === 'US') {
     var zip3 = parseInt(p.slice(0, 3), 10);
     if (isNaN(zip3)) return 1;
-    if ((zip3 >= 995 && zip3 <= 999) || zip3 === 967 || zip3 === 968) return 1.3; // Alaska, Hawaii
-    return [1.06, 1.07, 1.0, 0.97, 0.97, 0.98, 0.97, 0.97, 1.02, 1.08][Math.floor(zip3 / 100)];
+    var trend = (typeof PRICE_DATA !== 'undefined' && PRICE_DATA.regions[usRegion(zip3)]) || 1;
+    if ((zip3 >= 995 && zip3 <= 999) || zip3 === 967 || zip3 === 968) return 1.3 * trend; // Alaska, Hawaii
+    return [1.06, 1.07, 1.0, 0.97, 0.97, 0.98, 0.97, 0.97, 1.02, 1.08][Math.floor(zip3 / 100)] * trend;
   }
   if (country === 'CA') {
     var byLetter = { A: 1.08, B: 1.04, C: 1.04, E: 1.03, G: 0.98, H: 0.98, J: 0.98, K: 1, L: 1, M: 1, N: 1, P: 1, R: 1, S: 1, T: 1, V: 1.05, X: 1.4, Y: 1.4 };

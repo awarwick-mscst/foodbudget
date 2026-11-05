@@ -1,0 +1,7 @@
+name = "foodbudge-kroger"
+main = "kroger-proxy.js"
+compatibility_date = "2025-09-01"
+
+[vars]
+# Only let your FoodBudge site use this server. Change to your own address, or "*" for any site.
+ALLOWED_ORIGIN = "https://awarwick-mscst.github.io"

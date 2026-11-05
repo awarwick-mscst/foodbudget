@@ -42,10 +42,10 @@
       settings: {
         people: 2, budget: 75, nights: [1, 1, 1, 1, 1, 0, 0], weeks: 1, diet: 'none', avoid: [], cuisines: [],
         maxMinutes: 0, priceLevel: 1, currency: '$', kids: false, onboarded: false,
-        country: 'US', postal: '', store: 'unsure', carbTarget: 0, goals: [], calTarget: 550
+        country: 'US', postal: '', store: 'unsure', carbTarget: 0, goals: [], calTarget: 550, krogerStore: null
       },
       pantry: { salt: { plenty: true }, pepper: { plenty: true }, vegoil: { plenty: true } },
-      ratings: {}, priceOverrides: {}, history: [], customRecipes: [], customIngredients: {}, plan: null
+      ratings: {}, priceOverrides: {}, history: [], customRecipes: [], customIngredients: {}, plan: null, live: null
     };
   }
   function load() {
@@ -131,12 +131,73 @@
     var region = regionFactor(s.country, s.postal) / (s.country === 'CA' ? CAD_FACTOR : 1);
     var rel = Math.round((store.level * region - 1) * 100);
     var vs = s.country === 'OTHER' ? '' : (rel === 0 ? ', about the same as a typical supermarket' : ', about ' + Math.abs(rel) + '% ' + (rel < 0 ? 'below' : 'above') + ' a typical supermarket');
-    return 'Prices estimated for ' + esc(where) + near + vs + '. ' + c.note + '.';
+    if (liveActive()) {
+      var mins = (Date.now() - state.live.at) / 60000;
+      var when = mins < 60 ? 'just now' : mins < 1440 ? Math.round(mins / 60) + ' hr ago' : Math.round(mins / 1440) + ' days ago';
+      return 'Live prices from ' + esc(s.krogerStore.name) + ' (updated ' + when + '), sales included. Anything the store didn\'t match uses an estimate.';
+    }
+    var data = dataMonth();
+    return 'Prices estimated for ' + esc(where) + near + vs + (data ? ', from U.S. government grocery prices for ' + data : '') + '. ' + c.note + '.';
+  }
+  function dataMonth() {
+    if (typeof PRICE_DATA === 'undefined') return '';
+    var p = PRICE_DATA.month.split('-');
+    return ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'][p[1] - 1] + ' ' + p[0];
   }
   function suggestedBudget() {
     var s = state.settings;
     // Lower-carb dinners lean on meat and vegetables, which cost a bit more.
     return Math.max(25, Math.round((30 + s.people * 15) * (s.priceLevel || 1) * (s.carbTarget ? 1.1 : 1) / 5) * 5);
+  }
+
+  // ---------- live Kroger prices ----------
+  function krogerOn() {
+    return typeof Kroger !== 'undefined' && Kroger.enabled() && state.settings.country === 'US' && state.settings.store === 'kroger';
+  }
+  function liveActive() {
+    var s = state.settings;
+    return krogerOn() && !!s.krogerStore && !!state.live && state.live.loc === s.krogerStore.id;
+  }
+  // Fetch the picked store's prices at most twice a day (or right away when forced).
+  function refreshLive(force) {
+    var s = state.settings, store = s.krogerStore;
+    if (!krogerOn() || !store || ui.liveLoading) return;
+    if (!force && state.live && state.live.loc === store.id && Date.now() - state.live.at < 12 * 3600 * 1000) return;
+    ui.liveLoading = true; ui.liveError = '';
+    Kroger.prices(store.id).then(function (items) {
+      ui.liveLoading = false;
+      if (!Object.keys(items).length) throw new Error('That store didn\'t return any prices. Using estimates for now.');
+      state.live = { loc: store.id, at: Date.now(), items: items };
+      save(); render();
+      toast('Prices updated from ' + store.name);
+    }).catch(function (e) { ui.liveLoading = false; ui.liveError = e.message; render(); });
+  }
+  function findKroger() {
+    var zip = String(state.settings.postal || '').slice(0, 5);
+    ui.krogerStores = null; ui.liveError = '';
+    if (!/^\d{5}$/.test(zip)) { ui.liveError = 'Enter your ZIP code to find your store.'; render(); return; }
+    ui.krogerLoading = true; render();
+    Kroger.stores(zip).then(function (list) {
+      ui.krogerLoading = false; ui.krogerStores = list;
+      if (!list.length) ui.liveError = 'No Kroger-family stores within 25 miles of ' + zip + '. Using estimates.';
+      render();
+    }).catch(function (e) { ui.krogerLoading = false; ui.liveError = e.message; render(); });
+  }
+  function krogerField() {
+    if (!krogerOn()) return '';
+    var s = state.settings, out = '<div class="field"><span class="label">Your Kroger store</span>';
+    if (ui.krogerStores && ui.krogerStores.length) {
+      out += '<div class="opts">' + ui.krogerStores.map(function (st) {
+        return '<button class="opt goal" data-act="pickkroger" data-v="' + esc(st.id) + '" data-name="' + esc(st.name) + '" aria-pressed="' + (!!s.krogerStore && s.krogerStore.id === st.id) + '"><span><b>' + esc(st.name) + '</b><small>' + esc(st.address) + '</small></span></button>';
+      }).join('') + '</div>';
+    } else if (s.krogerStore) {
+      out += '<div class="row between"><span>' + esc(s.krogerStore.name) + '</span><button class="linkbtn" data-act="findkroger">Change</button></div>' +
+        '<span class="hint">' + (ui.liveLoading ? 'Getting this store\'s prices…' : liveActive() ? 'Using this store\'s live prices, sales included.' : '') + '</span>';
+    } else {
+      out += '<div><button class="btn sm" data-act="findkroger"' + (ui.krogerLoading ? ' disabled' : '') + '>' + (ui.krogerLoading ? 'Looking…' : 'Find my store for live prices') + '</button></div>';
+    }
+    if (ui.liveError) out += '<span class="hint">' + esc(ui.liveError) + '</span>';
+    return out + '</div>';
   }
 
   // ---------- plan ops ----------
@@ -326,7 +387,8 @@
       return out + '<div class="empty"><p>Nothing to buy. Your pantry covers every dinner this week.</p></div>';
     }
     out += '<div class="row between"><h2>Shopping list</h2><span class="small muted">' + left + ' of ' + buy.length + ' left</span></div>';
-    out += '<p class="small muted">' + priceNote() + ' Regular store-brand prices for whole packs. Tap a price to set what your store charges.</p>';
+    var trend = typeof PRICE_DATA !== 'undefined' && !liveActive() ? ' Groceries overall cost ' + Math.abs(Math.round(PRICE_DATA.yearlyChange * 1000) / 10) + '% ' + (PRICE_DATA.yearlyChange >= 0 ? 'more' : 'less') + ' than a year ago.' : '';
+    out += '<p class="small muted">' + priceNote() + trend + ' Prices are for whole packs. Tap a price to set what your store charges.</p>';
     var now = buy.filter(function (x) { return !x.later; });
     var later = buy.filter(function (x) { return x.later; });
     var groups = {};
@@ -348,12 +410,20 @@
       '<button class="btn ' + (state.plan.shopped ? '' : 'primary ') + 'block" data-act="shopped">' + (state.plan.shopped ? 'Marked as bought · tap to undo' : 'I bought everything') + '</button></div>';
     return out;
   }
+  function priceTag(id) {
+    var p = Planner.priceInfo(state, id);
+    if (p.source === 'mine') return '<span class="tag">Your price</span>';
+    if (p.source === 'sale') return '<span class="tag good" title="' + esc(p.product) + '">On sale</span>';
+    if (p.source === 'live') return '';
+    if (p.change >= 0.08) return '<span class="tag warn">Up ' + Math.round(p.change * 100) + '% in a year</span>';
+    if (p.change <= -0.08) return '<span class="tag good">Down ' + Math.round(-p.change * 100) + '% in a year</span>';
+    return '';
+  }
   function itemRow(x) {
     var checked = state.plan.checked && state.plan.checked[x.id];
     var i = x.ing;
     var packText = (i.pack === 1 && i.unit === 'each') ? 'Buy ' + x.packs : x.packs + ' × ' + esc(i.label);
     var life = LIFE_TAG[i.life] || LIFE_TAG.weeks;
-    var overridden = state.priceOverrides[x.id] != null;
     var priceHtml;
     if (ui.priceEdit === x.id) {
       priceHtml = '<form class="priceedit" data-form="price" data-id="' + x.id + '"><label class="sr" for="pe-' + x.id + '">Price per pack</label>' +
@@ -369,7 +439,7 @@
       '<button class="check" data-act="check" data-id="' + x.id + '" aria-pressed="' + (checked ? 'true' : 'false') + '" aria-label="In cart: ' + esc(i.name) + '"><i>' + I.check + '</i></button>' +
       '<div style="min-width:0"><div class="name">' + esc(i.name) + '</div><div class="sub"><span>' + packText + '</span>' +
       (x.have > 0 && isFinite(x.have) ? '<span>· have ' + amount(x.have, i) + '</span>' : '') +
-      '<span class="tag ' + life[0] + '">' + life[1] + '</span>' + (overridden ? '<span class="tag">Your price</span>' : '') + '</div>' + extra + '</div>' +
+      '<span class="tag ' + life[0] + '">' + life[1] + '</span>' + priceTag(x.id) + '</div>' + extra + '</div>' +
       '<div class="right">' + priceHtml + '<button class="linkbtn" data-act="have" data-id="' + x.id + '">I have it</button></div></div>';
   }
 
@@ -512,7 +582,7 @@
       '<div class="field"><label for="store">Store</label><select class="input" id="store" data-change="store">' +
       storeChoices().map(function (st) {
         return '<option value="' + st.id + '"' + (s.store === st.id ? ' selected' : '') + '>' + esc(st.name) + '</option>';
-      }).join('') + '</select><span class="hint" id="pricenote">' + priceNote() + '</span></div>' +
+      }).join('') + '</select><span class="hint" id="pricenote">' + priceNote() + '</span></div>' + krogerField() +
       '<div class="field"><label for="currency">Currency symbol</label><input class="input" id="currency" style="max-width:120px" value="' + esc(s.currency) + '" data-change="currency"></div>' +
       (Object.keys(state.priceOverrides).length ? '<button class="btn sm" data-act="resetprices">Clear my ' + Object.keys(state.priceOverrides).length + ' custom prices</button>' : '') +
       '</section>';
@@ -619,7 +689,7 @@
         body = '<h1 class="wiz-title">Where do you usually shop?</h1>' +
           '<div class="opts">' + storeChoices().map(function (st) {
             return '<button class="opt" data-act="store" data-v="' + st.id + '" aria-pressed="' + (s.store === st.id) + '"><span>' + esc(st.name) + '</span>' + storeTier(st) + '</button>';
-          }).join('') + '</div><p class="small muted" id="pricenote">' + priceNote() + '</p>';
+          }).join('') + '</div><p class="small muted" id="pricenote">' + priceNote() + '</p>' + krogerField();
         break;
       case 'budget':
         var sug = suggestedBudget();
@@ -1051,7 +1121,16 @@
       s.currency = COUNTRIES[s.country].currency;
       updatePriceLevel(); save(); render();
     },
-    store: function (el) { state.settings.store = el.dataset.v; updatePriceLevel(); save(); render(); },
+    store: function (el) {
+      state.settings.store = el.dataset.v; updatePriceLevel(); save();
+      if (krogerOn() && !state.settings.krogerStore && state.settings.postal) findKroger(); else render();
+    },
+    findkroger: function () { findKroger(); },
+    pickkroger: function (el) {
+      state.settings.krogerStore = { id: el.dataset.v, name: el.dataset.name };
+      ui.krogerStores = null; save();
+      refreshLive(true); render();
+    },
     rerunsetup: function () {
       state.settings.onboarded = false;
       ui.wizStep = 1; ui.budgetTouched = true;
@@ -1125,7 +1204,8 @@
       if (el.dataset.k === 'budget') ui.budgetTouched = true;
     } else if (k === 'store') {
       state.settings.store = el.value; updatePriceLevel(); save();
-      var note = document.getElementById('pricenote'); if (note) note.innerHTML = priceNote();
+      if (krogerOn()) { if (!state.settings.krogerStore) findKroger(); else { render(); refreshLive(); } }
+      else render();
     } else if (k === 'currency') {
       state.settings.currency = el.value.trim().slice(0, 4) || '$'; save(); render();
     } else if (k === 'staple') {
@@ -1191,10 +1271,13 @@
 
   // ---------- boot ----------
   state = load();
+  if (typeof Kroger === 'undefined' || !Kroger.enabled()) state.live = null;
+  updatePriceLevel(); // picks up this month's regional price changes
   if (!state.plan) state.plan = buildPlan(today());
   prunePantry();
   save();
   render();
+  refreshLive();
 
   if ('serviceWorker' in navigator && /^https?:/.test(location.protocol) && document.querySelector('link[rel="manifest"]')) {
     navigator.serviceWorker.register('sw.js').catch(function () { /* offline support unavailable */ });
