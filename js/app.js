@@ -56,6 +56,7 @@
         var saved = JSON.parse(raw);
         Object.keys(saved).forEach(function (k) {
           if (k === 'settings') Object.assign(s.settings, saved.settings);
+          if (s.settings.carbTarget === 30) s.settings.carbTarget = 25; // the lowest carb choice used to be 30 g
           else s[k] = saved[k];
         });
       }
@@ -685,8 +686,8 @@
   }
   function carbField() {
     return '<div class="field"><span class="label">Managing diabetes or watching carbs?</span><div class="chips">' +
-      chip('carbTarget', 0, 'No') + chip('carbTarget', 30, 'Yes, about 30 g per dinner') + chip('carbTarget', 45, 'Yes, about 45 g') + chip('carbTarget', 60, 'Yes, about 60 g') + '</div>' +
-      '<span class="hint">FoodBudge picks dinners near that amount, serves smaller portions of rice, pasta, bread and potatoes when needed, and avoids sugary sauces. Use the amount your doctor or dietitian gave you.</span></div>';
+      chip('carbTarget', 0, 'No') + chip('carbTarget', 25, 'Yes, 25 g or less per dinner') + chip('carbTarget', 45, '45 g or less') + chip('carbTarget', 60, '60 g or less') + '</div>' +
+      '<span class="hint">FoodBudge only plans dinners at or under that amount, serves smaller portions of rice, pasta, bread and potatoes when needed, and avoids sugary sauces. Use the amount your doctor or dietitian gave you.</span></div>';
   }
   function storeChoices() {
     return (STORES[state.settings.country] || STORES.OTHER).concat([STORE_UNSURE]);
@@ -946,7 +947,7 @@
     item('Calories', cal, '', ct ? (Math.abs(cal - ct) <= 100 ? 'good' : 'warn') : '');
     var pr = avg('protein');
     item('Protein', pr, ' g', g.indexOf('protein') >= 0 ? (pr >= 30 ? 'good' : 'warn') : '');
-    if (s.carbTarget) { var c = avg('carbs'); item('Carbs', c, ' g', c <= s.carbTarget + 5 ? 'good' : 'warn'); }
+    if (s.carbTarget) { var c = avg('carbs'); item('Carbs', c, ' g', c <= s.carbTarget ? 'good' : 'warn'); }
     var sf = avg('satfat');
     item('Sat fat', sf, ' g', g.indexOf('heart') >= 0 ? (sf <= 5 ? 'good' : 'warn') : '');
     var na = avg('sodium');

@@ -208,7 +208,8 @@ var Planner = (function () {
       if (!starch || (starch + rest) / serves <= target) return 1;
       return Math.max(floor, Math.min(1, (target * serves - rest) / starch));
     };
-    var factor = Math.min(fit(3, s.carbTarget || 0, 0.5), fit(0, calTarget(state), 0.6));
+    // Starchy sides can shrink to about a third (1/3 cup rice instead of 1 cup) to reach a carb target.
+    var factor = Math.min(fit(3, s.carbTarget || 0, 0.3), fit(0, calTarget(state), 0.6));
     var smaller = [];
     if (factor < 1) {
       list = list.map(function (p) {
@@ -248,7 +249,7 @@ var Planner = (function () {
     var s = state.settings;
     var n = nutrition(state, r);
     if (!n.known) return true;
-    if (s.carbTarget && (n.carbs > s.carbTarget + 5 || n.sugar > 12)) return false;
+    if (s.carbTarget && (n.carbs > s.carbTarget || n.sugar > 12)) return false;
     if (hasGoal(state, 'heart') && n.satfat > 10) return false;
     if (hasGoal(state, 'calories') && n.calories > calTarget(state) + 100) return false;
     if (hasGoal(state, 'sodium') && n.sodium > 1400) return false;
